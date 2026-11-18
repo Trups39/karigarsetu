@@ -4,7 +4,7 @@ Used by both the dashboard API and the Operations Agent, so the same checks and 
 """
 from sqlmodel import Session, select
 
-from ..models import Maker, Product, Stock
+from ..core.models import Maker, Product, Stock
 from . import audit
 from .orders import OrderError, rupees
 
@@ -80,7 +80,7 @@ def set_maker_settings(session: Session, maker: Maker, actor: str = "Maker", **c
         if key == "min_order" and value < 1:
             raise OrderError("Minimum order must be at least 1 pair")
         if key == "language":
-            from .. import i18n
+            from ..whatsapp import messages as i18n
             if value not in i18n.LANGS:
                 raise OrderError(f"Language must be one of: {', '.join(i18n.LANGS)}")
         setattr(maker, key, value)

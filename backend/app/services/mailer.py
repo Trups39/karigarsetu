@@ -9,7 +9,7 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
-from .. import config
+from ..core import config
 
 log = logging.getLogger("karigarsetu.mail")
 

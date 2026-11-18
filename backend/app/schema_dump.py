@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.schema import CreateIndex, CreateTable
 from sqlmodel import SQLModel
 
-from . import models  # noqa: F401  (registers tables)
+from .core import models  # noqa: F401  (registers tables)
 
 DB_DIR = Path(__file__).resolve().parents[1] / "db"
 

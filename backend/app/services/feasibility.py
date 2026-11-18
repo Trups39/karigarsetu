@@ -5,8 +5,8 @@ from datetime import date, timedelta
 
 from sqlmodel import Session, func, select
 
-from .. import config
-from ..models import ACTIVE_PRODUCTION, Maker, Order, Product, Stock
+from ..core import config
+from ..core.models import ACTIVE_PRODUCTION, Maker, Order, Product, Stock
 
 
 @dataclass

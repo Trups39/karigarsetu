@@ -36,11 +36,12 @@ os.environ.update({
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, select  # noqa: E402
 
-from app import config, i18n  # noqa: E402
+from app.core import config
+from app.whatsapp import messages as i18n  # noqa: E402
 from app import seed as seed_mod  # noqa: E402
-from app.db import engine  # noqa: E402
+from app.core.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Maker, Order, OrderLine, Product, Stock  # noqa: E402
+from app.core.models import Maker, Order, OrderLine, Product, Stock  # noqa: E402
 
 # Only warnings and errors from the app here; the per-call token lines would mix into the pass/FAIL output.
 logging.getLogger("karigarsetu").setLevel(logging.WARNING)

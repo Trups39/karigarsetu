@@ -1,46 +1,18 @@
 """Outgoing WhatsApp messages.
 
 Every message is stored in the Message table (so the demo works offline and the dashboard can show it).
-It is also sent for real through Meta's WhatsApp Cloud API or Twilio, whichever is set up
+It is also sent for real through Meta's WhatsApp Cloud API when that is set up
 (see config.whatsapp_provider).
 """
 import logging
-import threading
-import time
 
 import httpx
 from sqlmodel import Session
 
-from .. import config
-from ..models import Message
+from ..core import config
+from ..core.models import Message
 
 log = logging.getLogger("karigarsetu.notify")
-
-# The Twilio sandbox allows one message every 3 seconds, so sends are spaced out.
-MIN_GAP_SECONDS = 3.1
-_send_lock = threading.Lock()
-_last_send = 0.0
-
-
-def _twilio_send(phone: str, body: str) -> bool:
-    if not (config.TWILIO_ACCOUNT_SID and config.TWILIO_AUTH_TOKEN and config.TWILIO_WHATSAPP_FROM):
-        return False
-    global _last_send
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{config.TWILIO_ACCOUNT_SID}/Messages.json"
-    with _send_lock:
-        wait = MIN_GAP_SECONDS - (time.monotonic() - _last_send)
-        if wait > 0:
-            time.sleep(wait)
-        _last_send = time.monotonic()
-    try:
-        r = httpx.post(url, auth=(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN), timeout=10,
-                       data={"From": config.TWILIO_WHATSAPP_FROM, "To": f"whatsapp:+{phone}", "Body": body})
-        r.raise_for_status()
-        return True
-    except httpx.HTTPError as e:
-        log.warning("WhatsApp send to %s failed: %s", phone, e)
-        return False
-
 
 def _meta_send(phone: str, body: str) -> bool:
     """Send a text with Meta's WhatsApp Cloud API.
@@ -68,8 +40,6 @@ def _send_now(phone: str, body: str) -> bool:
     provider = config.whatsapp_provider()
     if provider == "meta":
         return _meta_send(phone, body)
-    if provider == "twilio":
-        return _twilio_send(phone, body)
     return False
 
 

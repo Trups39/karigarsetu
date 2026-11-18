@@ -10,8 +10,9 @@ from datetime import date
 
 from sqlmodel import Session, select
 
-from .. import config, i18n
-from ..models import Maker, Order, OrderLine, OrderStatus, Product, Retailer, Stock
+from ..core import config
+from ..whatsapp import messages as i18n
+from ..core.models import Maker, Order, OrderLine, OrderStatus, Product, Retailer, Stock
 from . import audit, feasibility, notify
 
 S = OrderStatus

@@ -68,12 +68,12 @@ Built for the **Claude × GoDaddy hackathon** (agentic business solutions for sm
 ```
  WhatsApp (shops, makers) ──► Meta Cloud API ──► POST /webhooks/meta ─┐
                                                                       ▼
- Browser ──► https://karigarsetu.co.in ──► FastAPI (backend/app) ──► whatsapp.py: maker or shop?
+ Browser ──► https://karigarsetu.co.in ──► FastAPI (backend/app) ──► whatsapp/router.py: maker or shop?
    website, dashboard, /admin                │                        ├─ quick reply 1/2/3, YES/NO → services
-                                             │                        ├─ shop  → agent.py     (Sales Agent)  ─┐
-                                             │                        └─ maker → ops_agent.py (Ops Agent)   ─┤ Claude API
+                                             │                        ├─ shop  → agents/sales.py      ─┐
+                                             │                        └─ maker → agents/operations.py ─┤ Claude API
                                              ▼                                                               │
-                                  services/  feasibility · orders · inventory · notify · mailer · audit ◄────┘ (tools)
+                                  services/  feasibility · orders · inventory · notify · mailer · audit ◄──────┘ (tools)
                                              │
                                              ▼
                                         PostgreSQL            Titan SMTP (contact@karigarsetu.co.in)
@@ -97,28 +97,43 @@ karigarsetu/
     ├── .env.example                every setting, with comments (copy to .env)
     │
     ├── app/
-    │   ├── main.py                 FastAPI app: API routes, dashboard API, webhooks, serves the frontend
-    │   ├── config.py               reads settings from backend/.env
-    │   ├── db.py                   database connection (PostgreSQL or SQLite)
-    │   ├── models.py               database tables
+    │   ├── main.py                 puts the app together: settings check, routers, serves the frontend
     │   ├── seed.py                 loads db/*.sql   (python -m app.seed --reset)
-    │   ├── schema_dump.py          writes db/schema.*.sql from models.py
+    │   ├── schema_dump.py          writes db/schema.*.sql from the models
     │   │
-    │   ├── whatsapp.py             routes each incoming message: quick replies, Sales Agent or Ops Agent
-    │   ├── agent.py                Sales Agent (shops) + the shared Claude tool-use loop
-    │   ├── ops_agent.py            Operations Agent (makers)
-    │   ├── meta_webhook.py         Meta webhook: signature check, message parsing, duplicate protection
-    │   ├── i18n.py                 fixed WhatsApp messages in Marathi, Hindi and English
+    │   ├── core/                   shared foundations
+    │   │   ├── config.py           reads settings from backend/.env
+    │   │   ├── db.py               database connection (PostgreSQL or SQLite)
+    │   │   ├── models.py           database tables
+    │   │   └── security.py         maker sessions (Bearer token), internal API key
     │   │
-    │   ├── auth.py                 maker sessions (Bearer token), internal API key
-    │   ├── accounts.py             supplier sign-up, email + password login, admin approval
-    │   ├── contact.py              website contact form
-    │   ├── validation.py           field rules shared by every form (the page uses the same rules)
+    │   ├── api/                    HTTP endpoints, one module per area
+    │   │   ├── public.py           /health, makers and contact details for the home page
+    │   │   ├── contact.py          website contact form
+    │   │   ├── accounts.py         supplier sign-up, email + password login, logout
+    │   │   ├── admin.py            /admin: approve or reject suppliers, /docs lock
+    │   │   ├── dashboard.py        maker dashboard: orders, designs, stock, retailers, audit
+    │   │   ├── demo.py             dashboard demo buttons (DEMO_MODE only)
+    │   │   ├── internal.py         internal tools and tests (X-Internal-Key)
+    │   │   ├── webhooks.py         Meta WhatsApp webhook (signature checked)
+    │   │   └── common.py           shared request bodies and the order view
+    │   │
+    │   ├── agents/                 the two Claude agents
+    │   │   ├── base.py             shared tool-use loop, prompt caching, memory
+    │   │   ├── sales.py            Sales Agent (shops)
+    │   │   └── operations.py       Operations Agent (makers)
+    │   │
+    │   ├── whatsapp/               incoming WhatsApp
+    │   │   ├── router.py           routes each message: quick replies, Sales Agent or Operations Agent
+    │   │   ├── meta.py             Meta format: signature check, message parsing, duplicate protection
+    │   │   └── messages.py         fixed messages in Marathi, Hindi and English
     │   │
     │   └── services/               the business rules (no AI here)
     │       ├── feasibility.py      ready vs to-make per size, earliest delivery date
     │       ├── orders.py           order status changes, approvals, counter-offers
     │       ├── inventory.py        stock, capacity, prices, buffer days
+    │       ├── accounts.py         passwords, admin sessions, supplier approval
+    │       ├── validation.py       field rules shared by every form (the page uses the same rules)
     │       ├── notify.py           outgoing WhatsApp messages (Meta)
     │       ├── mailer.py           outgoing email (Titan SMTP)
     │       └── audit.py            audit log

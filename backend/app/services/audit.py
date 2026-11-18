@@ -1,6 +1,6 @@
 from sqlmodel import Session
 
-from ..models import AuditLog
+from ..core.models import AuditLog
 
 
 def log(session: Session, actor: str, action: str, detail: str = "", maker_id: int | None = None,

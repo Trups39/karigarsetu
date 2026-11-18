@@ -3,10 +3,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, select
 
-from app import config
-from app.db import engine
+from app.core import config
+from app.core.db import engine
 from app.main import app
-from app.models import Maker, MakerSession, Message, SupplierAccount
+from app.core.models import Maker, MakerSession, Message, SupplierAccount
 
 ADMIN = {"X-Requested-With": "KarigarSetu"}
 NEW = {"name": "Asha Patil", "business_name": "Asha Chappal Works", "craft": "Kolhapuri footwear",
@@ -17,8 +17,8 @@ NEW = {"name": "Asha Patil", "business_name": "Asha Chappal Works", "craft": "Ko
 @pytest.fixture()
 def client():
     SQLModel.metadata.drop_all(engine)
-    from app import accounts
-    accounts._admin_fails.clear()
+    from app.api import admin
+    admin._admin_fails.clear()
     with TestClient(app) as c:
         yield c
 
@@ -236,7 +236,7 @@ def test_webhooks_and_internal_unaffected(client):
 def test_makers_start_empty_and_new_maker_adds_designs(client, monkeypatch):
     """Normal setup: no makers until a sign-up is approved; the new maker adds designs and can take orders."""
     from app import seed as seed_mod
-    from app.models import Retailer
+    from app.core.models import Retailer
     monkeypatch.setattr(config, "SAMPLE_MAKERS", False)
     seed_mod.reset()
     with Session(engine) as s:

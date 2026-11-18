@@ -1,6 +1,4 @@
 """End-to-end tests. Run: pytest -q"""
-import os
-import tempfile
 
 # Test settings (SQLite by default, PostgreSQL with TEST_DATABASE_URL) are in tests/conftest.py.
 
@@ -8,8 +6,8 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import SQLModel  # noqa: E402
 
-from app import config  # noqa: E402
-from app.db import engine  # noqa: E402
+from app.core import config  # noqa: E402
+from app.core.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
 
 INTERNAL = {"X-Internal-Key": "test-key"}
@@ -27,8 +25,8 @@ def client():
 def login(c, phone):
     """Log in as the maker with this WhatsApp number (gives them an approved test account first)."""
     from sqlmodel import Session, select
-    from app.accounts import hash_password
-    from app.models import AccountStatus, Maker, SupplierAccount
+    from app.services.accounts import hash_password
+    from app.core.models import AccountStatus, Maker, SupplierAccount
     with Session(engine) as s:
         m = s.exec(select(Maker).where(Maker.phone == phone)).first()
         a = s.exec(select(SupplierAccount).where(SupplierAccount.phone == phone)).first()
@@ -364,31 +362,9 @@ def test_maker_quick_reply_still_works_and_agent_offline_help(client):
     assert f"{code} मंजूर" in maker_says(client, "1")                   # quick reply needs no AI
 
 
-def test_twilio_webhook_and_spaced_sends(client, monkeypatch):
-    """The webhook answers at once and handles the message; real sends are spaced 3 s apart."""
-    from app.services import notify
-
-    code = pune_order(client)["order"]["code"]
-    r = client.post("/webhooks/whatsapp", data={"From": "whatsapp:+919800000001", "Body": "1"})
-    assert r.status_code == 200 and r.text == "<Response/>"
-    h = login(client, SHINDE)
-    assert client.get(f"/api/orders/{code}", headers=h).json()["status"] == "approved"
-
-    sent, clock = [], {"t": 100.0}
-    monkeypatch.setattr(config, "TWILIO_ACCOUNT_SID", "AC1")
-    monkeypatch.setattr(config, "TWILIO_AUTH_TOKEN", "tok")
-    monkeypatch.setattr(config, "TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
-    monkeypatch.setattr(notify.time, "monotonic", lambda: clock["t"])
-    monkeypatch.setattr(notify.time, "sleep", lambda s: (sent.append(("slept", round(s, 1))), clock.update(t=clock["t"] + s)))
-    monkeypatch.setattr(notify, "_last_send", 0.0)
-
-    class R:
-        def raise_for_status(self):
-            pass
-
-    monkeypatch.setattr(notify.httpx, "post", lambda url, **kw: (sent.append(kw["data"]["To"]), R())[1])
-    assert notify._twilio_send("919811112222", "a") and notify._twilio_send("919800000001", "b")
-    assert sent == ["whatsapp:+919811112222", ("slept", 3.1), "whatsapp:+919800000001"]
+def test_no_unsigned_webhook(client):
+    """Only the Meta webhook (signature-checked) accepts WhatsApp messages; there is no other way in."""
+    assert client.post("/webhooks/whatsapp", data={"From": "whatsapp:+919800000001", "Body": "1"}).status_code in (404, 405)
 
 
 # ---------- Meta WhatsApp Cloud API ----------
@@ -459,9 +435,9 @@ def test_meta_receipts_ignored_and_voice_note_asks_for_text(client, meta):
     assert meta_post(client, receipt).json() == {"ok": True}
 
     meta_post(client, meta_payload(RETAILER, msg_id="wamid.voice-1", kind="audio"))
-    h = login(client, SHINDE)
+    login(client, SHINDE)
     from sqlmodel import Session, select
-    from app.models import Message
+    from app.core.models import Message
     with Session(engine) as s:
         msgs = s.exec(select(Message).where(Message.phone == RETAILER).order_by(Message.id)).all()
     assert [m.direction for m in msgs] == ["in", "out"] and msgs[0].body == "[audio message]"
@@ -501,7 +477,7 @@ def test_meta_send_request(client, monkeypatch):
 def test_messages_follow_each_persons_language(client):
     """Hindi shop gets Hindi; English shop gets English; maker switched to English gets English."""
     from sqlmodel import Session, select
-    from app.models import Message
+    from app.core.models import Message
 
     def last_to(phone):
         with Session(engine) as s:
@@ -527,7 +503,7 @@ def test_messages_follow_each_persons_language(client):
 
 
 def test_unknown_number_language_is_guessed():
-    from app import i18n
+    from app.whatsapp import messages as i18n
     assert i18n.detect("मला क्लासिक 50 जोड्या हव्यात") == "Marathi"
     assert i18n.detect("मुझे कापशी 40 जोड़ी चाहिए") == "Hindi"
     assert i18n.detect("Bhai 30 pair paytan chahiye") == "Hindi"
@@ -537,7 +513,7 @@ def test_unknown_number_language_is_guessed():
 
 def test_all_languages_have_the_same_placeholders():
     import string
-    from app import i18n
+    from app.whatsapp import messages as i18n
     for key, texts in i18n.TEXTS.items():
         assert set(texts) == set(i18n.LANGS), key
         fields = [{f for _, f, _, _ in string.Formatter().parse(v) if f} for v in texts.values()]
@@ -545,7 +521,7 @@ def test_all_languages_have_the_same_placeholders():
 
 
 def test_whatsapp_formatting():
-    from app.agent import whatsapp_format
+    from app.agents.base import whatsapp_format
     assert whatsapp_format("- **KS-1039**: Nashik, __soon__") == "- *KS-1039*: Nashik, _soon_"
     assert whatsapp_format("## Orders\nKS-1041") == "Orders\nKS-1041"
     assert whatsapp_format("*already fine*") == "*already fine*"
@@ -557,7 +533,7 @@ def test_agent_survives_bad_history_and_errors(client, monkeypatch):
 
     import anthropic
     from sqlmodel import Session
-    from app.models import Conversation
+    from app.core.models import Conversation
 
     with Session(engine) as s:
         s.add(Conversation(phone="ops:" + SHINDE, history='[{"role": "user", "content": "old"}]'))
@@ -604,7 +580,7 @@ def test_thinking_blocks_kept_within_a_reply_but_not_saved(client, monkeypatch):
 
     import anthropic
     from sqlmodel import Session
-    from app.models import Conversation
+    from app.core.models import Conversation
 
     def thinking():
         return NS(type="thinking", thinking="let me check", signature="SIG-123")
@@ -641,7 +617,7 @@ def test_thinking_blocks_kept_within_a_reply_but_not_saved(client, monkeypatch):
 def test_my_phones_survive_reset(client, monkeypatch):
     from sqlmodel import Session, select
     from app import seed as seed_mod
-    from app.models import Maker, Retailer
+    from app.core.models import Maker, Retailer
 
     monkeypatch.setattr(config, "DEMO_RETAILER_PHONE", "13158865652")
     seed_mod.reset()
@@ -704,7 +680,7 @@ def test_prompt_caching_marks_tools_system_and_last_message(client, monkeypatch)
 
     import anthropic
     from sqlmodel import Session
-    from app.models import Conversation
+    from app.core.models import Conversation
 
     calls = []
     tool = NS(type="tool_use", id="t1", name="list_orders", input={})

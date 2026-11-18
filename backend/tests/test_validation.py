@@ -2,7 +2,7 @@
 import pytest
 from fastapi import HTTPException
 
-from app import validation as V
+from app.services import validation as V
 
 
 def bad(fn, *args):

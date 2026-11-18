@@ -15,9 +15,9 @@ from pathlib import Path
 
 from sqlmodel import Session, SQLModel, select
 
-from . import config
-from .db import engine, init_db
-from .models import Maker, Retailer
+from .core import config
+from .core.db import engine, init_db
+from .core.models import Maker, Retailer
 
 DB_DIR = Path(__file__).resolve().parents[1] / "db"
 
@@ -46,14 +46,14 @@ def seed(session: Session) -> bool:
             run_sql_file(session, DB_DIR / "demo_orders.sql")
     use_my_phones(session)
     session.commit()
-    from .accounts import relink_accounts
+    from .services.accounts import relink_accounts
     relink_accounts(session)   # supplier logins kept by --reset point at their maker again
     return True
 
 
 def use_my_phones(session: Session) -> None:
     """Swap the sample shop's number for your real retailer test phone (DEMO_RETAILER_PHONE in .env)."""
-    from .models import Order, Retailer
+    from .core.models import Order, Retailer
     if config.DEMO_RETAILER_PHONE:
         r = session.exec(select(Retailer).where(Retailer.name == "Pune Footwear House")).first()
         if r:
@@ -72,7 +72,7 @@ def reset() -> int:
     Returns how many were kept. They are linked to their maker again when the data is loaded."""
     from sqlalchemy.exc import SQLAlchemyError
 
-    from .models import SupplierAccount
+    from .core.models import SupplierAccount
     try:
         with Session(engine) as s:
             saved = [a.model_dump(exclude={"id", "maker_id"}) for a in s.exec(select(SupplierAccount))

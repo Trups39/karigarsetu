@@ -3,10 +3,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, select
 
-from app import config, contact
-from app.db import engine
+from app.core import config
+from app.api import contact
+from app.core.db import engine
 from app.main import app
-from app.models import ContactMessage
+from app.core.models import ContactMessage
 from app.services import mailer
 
 GOOD = {"name": "Rahul Patil", "email": "Rahul@Shop.in", "phone": "+91 98220 11111",
