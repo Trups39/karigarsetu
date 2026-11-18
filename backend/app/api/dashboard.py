@@ -2,6 +2,7 @@
 
 Each maker only ever sees and changes their own orders, designs and stock.
 """
+
 import re
 from datetime import date
 from typing import Optional
@@ -42,7 +43,7 @@ class StockIn(BaseModel):
 
 class ProductIn(BaseModel):
     name: str = ""
-    price_per_pair: float | int | str | None = None      # checked in add_product (friendly messages)
+    price_per_pair: float | int | str | None = None  # checked in add_product (friendly messages)
     pairs_per_day: float | int | str | None = 5
     sizes: str = "6,7,8,9,10"
 
@@ -55,7 +56,7 @@ class ProductPatch(BaseModel):
 class MakerPatch(BaseModel):
     buffer_days: Optional[int] = Field(default=None, ge=0)
     min_order: Optional[int] = Field(default=None, ge=1)
-    language: Optional[str] = None   # Marathi, Hindi or English
+    language: Optional[str] = None  # Marathi, Hindi or English
 
 
 @router.get("/api/me")
@@ -74,18 +75,27 @@ def overview(maker: Maker = Depends(current_maker), session: Session = Depends(g
     ready = session.exec(select(func.coalesce(func.sum(Stock.ready), 0)).where(Stock.product_id.in_(pids))).one()
     mine = select(Order).where(Order.maker_id == maker.id)
     count = lambda *st: len(session.exec(mine.where(Order.status.in_(st))).all())  # noqa: E731
-    in_prod = sum(o.to_make for o in session.exec(mine.where(Order.status.in_(
-        [OrderStatus.approved, OrderStatus.in_production]))))
-    return {"pairs_ready": int(ready), "pairs_in_production": in_prod,
-            "awaiting_approval": count(OrderStatus.awaiting_maker),
-            "upcoming_deliveries": count(OrderStatus.approved, OrderStatus.in_production, OrderStatus.ready),
-            "recent_activity": session.exec(select(AuditLog).where(AuditLog.maker_id == maker.id)
-                                            .order_by(AuditLog.ts.desc(), AuditLog.id.desc()).limit(8)).all()}
+    in_prod = sum(
+        o.to_make for o in session.exec(mine.where(Order.status.in_([OrderStatus.approved, OrderStatus.in_production])))
+    )
+    return {
+        "pairs_ready": int(ready),
+        "pairs_in_production": in_prod,
+        "awaiting_approval": count(OrderStatus.awaiting_maker),
+        "upcoming_deliveries": count(OrderStatus.approved, OrderStatus.in_production, OrderStatus.ready),
+        "recent_activity": session.exec(
+            select(AuditLog)
+            .where(AuditLog.maker_id == maker.id)
+            .order_by(AuditLog.ts.desc(), AuditLog.id.desc())
+            .limit(8)
+        ).all(),
+    }
 
 
 @router.get("/api/orders")
-def list_orders(status: Optional[OrderStatus] = None, maker: Maker = Depends(current_maker),
-                session: Session = Depends(get_session)):
+def list_orders(
+    status: Optional[OrderStatus] = None, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)
+):
     q = select(Order).where(Order.maker_id == maker.id)
     if status:
         q = q.where(Order.status == status)
@@ -140,22 +150,34 @@ def add_product(body: ProductIn, maker: Maker = Depends(current_maker), session:
     code, n = base, 2
     while any(p.code == code for p in mine):
         code, n = f"{base}-{n}", n + 1
-    p = Product(maker_id=maker.id, code=code, name=name, price_per_pair=price,
-                pairs_per_day=per_day, sizes=",".join(map(str, sizes)))
+    p = Product(
+        maker_id=maker.id,
+        code=code,
+        name=name,
+        price_per_pair=price,
+        pairs_per_day=per_day,
+        sizes=",".join(map(str, sizes)),
+    )
     session.add(p)
     session.flush()
     for s in sizes:
         session.add(Stock(product_id=p.id, size=s, ready=0))
-    audit.log(session, "Maker", "product.added", f"{name}: ₹{p.price_per_pair}/pair, {p.pairs_per_day} pairs/day, "
-              f"sizes {p.sizes}", maker.id)
-    data = p.model_dump()   # read before the commit expires it
+    audit.log(
+        session,
+        "Maker",
+        "product.added",
+        f"{name}: ₹{p.price_per_pair}/pair, {p.pairs_per_day} pairs/day, sizes {p.sizes}",
+        maker.id,
+    )
+    data = p.model_dump()  # read before the commit expires it
     session.commit()
     return {**data, "committed": 0}
 
 
 @router.patch("/api/products/{code}")
-def update_product(code: str, body: ProductPatch, maker: Maker = Depends(current_maker),
-                   session: Session = Depends(get_session)):
+def update_product(
+    code: str, body: ProductPatch, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)
+):
     p = inventory.product(session, maker, code)
     if body.price_per_pair is not None:
         p = inventory.set_price(session, maker, code, body.price_per_pair)
@@ -169,8 +191,14 @@ def stock(maker: Maker = Depends(current_maker), session: Session = Depends(get_
     out = []
     for p in session.exec(select(Product).where(Product.maker_id == maker.id).order_by(Product.id)):
         rows = {s.size: s.ready for s in session.exec(select(Stock).where(Stock.product_id == p.id))}
-        out.append({"product_code": p.code, "product_name": p.name,
-                    "sizes": {sz: rows.get(sz, 0) for sz in p.size_list()}, "total": sum(rows.values())})
+        out.append(
+            {
+                "product_code": p.code,
+                "product_name": p.name,
+                "sizes": {sz: rows.get(sz, 0) for sz in p.size_list()},
+                "total": sum(rows.values()),
+            }
+        )
     return out
 
 
@@ -187,20 +215,33 @@ def retailers(maker: Maker = Depends(current_maker), session: Session = Depends(
     for r in session.exec(select(Retailer).order_by(Retailer.name)):
         mine = session.exec(select(Order).where(Order.maker_id == maker.id, Order.retailer_id == r.id)).all()
         if mine:
-            out.append({**r.model_dump(), "orders": len(mine),
-                        "pairs": sum(sum(orders.lines_of(session, o).values()) for o in mine)})
+            out.append(
+                {
+                    **r.model_dump(),
+                    "orders": len(mine),
+                    "pairs": sum(sum(orders.lines_of(session, o).values()) for o in mine),
+                }
+            )
     return out
 
 
 @router.get("/api/audit")
 def audit_log(limit: int = 100, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)):
-    return session.exec(select(AuditLog).where(AuditLog.maker_id == maker.id)
-                        .order_by(AuditLog.ts.desc(), AuditLog.id.desc()).limit(min(limit, 500))).all()
+    return session.exec(
+        select(AuditLog)
+        .where(AuditLog.maker_id == maker.id)
+        .order_by(AuditLog.ts.desc(), AuditLog.id.desc())
+        .limit(min(limit, 500))
+    ).all()
 
 
 @router.get("/api/messages")
 def messages(limit: int = 50, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)):
     """WhatsApp messages linked to this maker's orders (also shown when WhatsApp sending is off)."""
     codes = [o.code for o in session.exec(select(Order).where(Order.maker_id == maker.id))]
-    return session.exec(select(Message).where(Message.order_code.in_(codes))
-                        .order_by(Message.ts.desc(), Message.id.desc()).limit(min(limit, 200))).all()
+    return session.exec(
+        select(Message)
+        .where(Message.order_code.in_(codes))
+        .order_by(Message.ts.desc(), Message.id.desc())
+        .limit(min(limit, 200))
+    ).all()

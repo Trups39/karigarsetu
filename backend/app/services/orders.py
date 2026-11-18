@@ -1,27 +1,32 @@
 r"""Order lifecycle. Every allowed status change lives here, with its audit entry and WhatsApp message.
 
-    awaiting_maker --approve--> approved --> in_production --> ready --> delivered
-          |  \--counter--> counter_offered --retailer yes--> approved
-          |                       \--retailer no--> rejected
-          \--reject--> rejected
+awaiting_maker --approve--> approved --> in_production --> ready --> delivered
+      |  \--counter--> counter_offered --retailer yes--> approved
+      |                       \--retailer no--> rejected
+      \--reject--> rejected
 """
+
 import uuid
 from datetime import date
 
 from sqlmodel import Session, select
 
 from ..core import config
-from ..whatsapp import messages as i18n
 from ..core.models import Maker, Order, OrderLine, OrderStatus, Product, Retailer, Stock
+from ..whatsapp import messages as i18n
 from . import audit, feasibility, notify
 
 S = OrderStatus
 
 NEXT_STEP = {S.approved: S.in_production, S.in_production: S.ready, S.ready: S.delivered}
 STATUS_TEXT = {
-    S.awaiting_maker: "waiting for the maker", S.counter_offered: "waiting for your reply",
-    S.approved: "confirmed", S.in_production: "in production", S.ready: "ready to ship",
-    S.delivered: "delivered", S.rejected: "cancelled",
+    S.awaiting_maker: "waiting for the maker",
+    S.counter_offered: "waiting for your reply",
+    S.approved: "confirmed",
+    S.in_production: "in production",
+    S.ready: "ready to ship",
+    S.delivered: "delivered",
+    S.rejected: "cancelled",
 }
 
 
@@ -55,8 +60,9 @@ def lines_text(lines: dict[int, int]) -> str:
 
 def _require(order: Order, *allowed: OrderStatus) -> None:
     if order.status not in allowed:
-        raise OrderError(f"Order {order.code} is {order.status.value}; this action needs "
-                         + " or ".join(a.value for a in allowed))
+        raise OrderError(
+            f"Order {order.code} is {order.status.value}; this action needs " + " or ".join(a.value for a in allowed)
+        )
 
 
 def get_by_code(session: Session, code: str, maker_id: int | None = None) -> Order:
@@ -88,8 +94,19 @@ def upsert_retailer(session: Session, phone: str, name: str, city: str = "", lan
 
 # ---------- created by the Sales Agent ----------
 
-def create(session: Session, *, maker_id: int, product_code: str, lines: dict[int, int], retailer_name: str,
-           retailer_phone: str, city: str = "", language: str = "", source_text: str = "") -> tuple[Order, feasibility.Feasibility]:
+
+def create(
+    session: Session,
+    *,
+    maker_id: int,
+    product_code: str,
+    lines: dict[int, int],
+    retailer_name: str,
+    retailer_phone: str,
+    city: str = "",
+    language: str = "",
+    source_text: str = "",
+) -> tuple[Order, feasibility.Feasibility]:
     product = session.exec(select(Product).where(Product.maker_id == maker_id, Product.code == product_code)).first()
     if not product:
         raise OrderError(f"Maker {maker_id} has no product '{product_code}'")
@@ -100,9 +117,18 @@ def create(session: Session, *, maker_id: int, product_code: str, lines: dict[in
         raise OrderError("Order has no pairs")
 
     retailer = upsert_retailer(session, retailer_phone, retailer_name, city, language)
-    order = Order(code=f"TMP-{uuid.uuid4().hex[:8]}", maker_id=maker_id, product_id=product.id,
-                  retailer_id=retailer.id, retailer_name=retailer_name, retailer_phone=retailer_phone, city=city, language=language,
-                  price_per_pair=product.price_per_pair, proposed_date=f.earliest_date)
+    order = Order(
+        code=f"TMP-{uuid.uuid4().hex[:8]}",
+        maker_id=maker_id,
+        product_id=product.id,
+        retailer_id=retailer.id,
+        retailer_name=retailer_name,
+        retailer_phone=retailer_phone,
+        city=city,
+        language=language,
+        price_per_pair=product.price_per_pair,
+        proposed_date=f.earliest_date,
+    )
     session.add(order)
     session.flush()
     order.code = next_code(session)
@@ -110,18 +136,44 @@ def create(session: Session, *, maker_id: int, product_code: str, lines: dict[in
         session.add(OrderLine(order_id=order.id, size=ln.size, qty=ln.qty))
 
     maker = session.get(Maker, maker_id)
-    audit.log(session, "AI agent", "order.drafted",
-              f"{product.name}, {f.total} pairs ({lines_text(lines)}) for {retailer_name}"
-              + (f" from {language} message: {source_text[:120]}" if source_text else ""),
-              maker_id, order.code)
-    audit.log(session, "System", "order.feasibility",
-              f"{f.ready} ready, {f.to_make} to make, earliest {fmt(f.earliest_date)}", maker_id, order.code)
+    audit.log(
+        session,
+        "AI agent",
+        "order.drafted",
+        f"{product.name}, {f.total} pairs ({lines_text(lines)}) for {retailer_name}"
+        + (f" from {language} message: {source_text[:120]}" if source_text else ""),
+        maker_id,
+        order.code,
+    )
+    audit.log(
+        session,
+        "System",
+        "order.feasibility",
+        f"{f.ready} ready, {f.to_make} to make, earliest {fmt(f.earliest_date)}",
+        maker_id,
+        order.code,
+    )
     ml = maker.language
-    notify.send(session, maker.phone, i18n.t(
-        "maker_new_order", ml, code=order.code, retailer=retailer_name, city=f", {city}" if city else "",
-        product=product.name, total=f.total, lines=i18n.sizes(lines, ml), ready=f.ready, to_make=f.to_make,
-        date=i18n.fmt_date(f.earliest_date, ml), price=rupees(product.price_per_pair),
-        total_price=rupees(f.total_price)), order.code)
+    notify.send(
+        session,
+        maker.phone,
+        i18n.t(
+            "maker_new_order",
+            ml,
+            code=order.code,
+            retailer=retailer_name,
+            city=f", {city}" if city else "",
+            product=product.name,
+            total=f.total,
+            lines=i18n.sizes(lines, ml),
+            ready=f.ready,
+            to_make=f.to_make,
+            date=i18n.fmt_date(f.earliest_date, ml),
+            price=rupees(product.price_per_pair),
+            total_price=rupees(f.total_price),
+        ),
+        order.code,
+    )
     audit.log(session, "System", "maker.notified", "Approval request sent on WhatsApp", maker_id, order.code)
     session.commit()
     session.refresh(order)
@@ -129,6 +181,7 @@ def create(session: Session, *, maker_id: int, product_code: str, lines: dict[in
 
 
 # ---------- maker decisions ----------
+
 
 def approve(session: Session, order: Order, actor: str = "Maker", due_date: date | None = None) -> Order:
     """Maker approves (optionally with their own delivery date), or retailer accepts a counter-offer."""
@@ -139,9 +192,9 @@ def approve(session: Session, order: Order, actor: str = "Maker", due_date: date
         order.due_date = due_date
     product = session.get(Product, order.product_id)
     lines = lines_of(session, order)
-    f = feasibility.check(session, product, lines)   # re-check: stock may have changed since the draft
+    f = feasibility.check(session, product, lines)  # re-check: stock may have changed since the draft
 
-    for ln in f.lines:   # reserve ready pairs
+    for ln in f.lines:  # reserve ready pairs
         st = session.exec(select(Stock).where(Stock.product_id == product.id, Stock.size == ln.size)).first()
         if st and ln.ready:
             st.ready -= ln.ready
@@ -154,16 +207,39 @@ def approve(session: Session, order: Order, actor: str = "Maker", due_date: date
 
     total = sum(lines.values())
     if actor == "Maker":
-        audit.log(session, "Maker", "order.approved",
-                  f"{total} pairs at {rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}",
-                  order.maker_id, order.code)
-    audit.log(session, "System", "stock.reserved",
-              f"Reserved {f.ready} ready pairs, booked {f.to_make} for production", order.maker_id, order.code)
+        audit.log(
+            session,
+            "Maker",
+            "order.approved",
+            f"{total} pairs at {rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}",
+            order.maker_id,
+            order.code,
+        )
+    audit.log(
+        session,
+        "System",
+        "stock.reserved",
+        f"Reserved {f.ready} ready pairs, booked {f.to_make} for production",
+        order.maker_id,
+        order.code,
+    )
     maker = session.get(Maker, order.maker_id)
     rl = retailer_language(session, order)
-    notify.send(session, order.retailer_phone, i18n.t(
-        "retailer_confirmed", rl, code=order.code, maker=maker.name, product=product.name, total=total,
-        total_price=rupees(total * order.price_per_pair), date=i18n.fmt_date(order.due_date, rl)), order.code)
+    notify.send(
+        session,
+        order.retailer_phone,
+        i18n.t(
+            "retailer_confirmed",
+            rl,
+            code=order.code,
+            maker=maker.name,
+            product=product.name,
+            total=total,
+            total_price=rupees(total * order.price_per_pair),
+            date=i18n.fmt_date(order.due_date, rl),
+        ),
+        order.code,
+    )
     audit.log(session, "System", "retailer.notified", "Confirmation sent on WhatsApp", order.maker_id, order.code)
     session.commit()
     session.refresh(order)
@@ -178,17 +254,27 @@ def reject(session: Session, order: Order, reason: str = "", actor: str = "Maker
     if actor == "Maker":
         maker = session.get(Maker, order.maker_id)
         rl = retailer_language(session, order)
-        notify.send(session, order.retailer_phone, i18n.t(
-            "retailer_declined", rl, maker=maker.name, code=order.code,
-            reason=i18n.t("reason", rl, reason=reason) if reason else ""), order.code)
+        notify.send(
+            session,
+            order.retailer_phone,
+            i18n.t(
+                "retailer_declined",
+                rl,
+                maker=maker.name,
+                code=order.code,
+                reason=i18n.t("reason", rl, reason=reason) if reason else "",
+            ),
+            order.code,
+        )
         audit.log(session, "System", "retailer.notified", "Decline sent on WhatsApp", order.maker_id, order.code)
     session.commit()
     session.refresh(order)
     return order
 
 
-def counter(session: Session, order: Order, due_date: date | None = None, price_per_pair: int | None = None,
-            note: str = "") -> Order:
+def counter(
+    session: Session, order: Order, due_date: date | None = None, price_per_pair: int | None = None, note: str = ""
+) -> Order:
     _require(order, S.awaiting_maker)
     if due_date is None and price_per_pair is None:
         raise OrderError("Give a new delivery date, a new price, or both")
@@ -200,15 +286,32 @@ def counter(session: Session, order: Order, due_date: date | None = None, price_
     order.status = S.counter_offered
     session.add(order)
     total = sum(lines_of(session, order).values())
-    audit.log(session, "Maker", "order.counter",
-              f"{rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}" + (f". {note}" if note else ""),
-              order.maker_id, order.code)
+    audit.log(
+        session,
+        "Maker",
+        "order.counter",
+        f"{rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}" + (f". {note}" if note else ""),
+        order.maker_id,
+        order.code,
+    )
     maker = session.get(Maker, order.maker_id)
     rl = retailer_language(session, order)
-    notify.send(session, order.retailer_phone, i18n.t(
-        "retailer_counter", rl, maker=maker.name, code=order.code, total=total,
-        price=rupees(order.price_per_pair), total_price=rupees(total * order.price_per_pair),
-        date=i18n.fmt_date(order.due_date, rl), note=i18n.t("note", rl, note=note) if note else ""), order.code)
+    notify.send(
+        session,
+        order.retailer_phone,
+        i18n.t(
+            "retailer_counter",
+            rl,
+            maker=maker.name,
+            code=order.code,
+            total=total,
+            price=rupees(order.price_per_pair),
+            total_price=rupees(total * order.price_per_pair),
+            date=i18n.fmt_date(order.due_date, rl),
+            note=i18n.t("note", rl, note=note) if note else "",
+        ),
+        order.code,
+    )
     audit.log(session, "System", "retailer.notified", "Counter-offer sent on WhatsApp", order.maker_id, order.code)
     session.commit()
     session.refresh(order)
@@ -221,8 +324,12 @@ def retailer_reply(session: Session, order: Order, accept: bool) -> Order:
     if accept:
         return approve(session, order, actor="Retailer")
     order = reject(session, order, "Retailer declined the counter-offer", actor="Retailer")
-    notify.send(session, order.retailer_phone,
-                i18n.t("retailer_cancelled", retailer_language(session, order), code=order.code), order.code)
+    notify.send(
+        session,
+        order.retailer_phone,
+        i18n.t("retailer_cancelled", retailer_language(session, order), code=order.code),
+        order.code,
+    )
     session.commit()
     return order
 
@@ -234,8 +341,12 @@ def advance(session: Session, order: Order, to: OrderStatus) -> Order:
     session.add(order)
     audit.log(session, "Maker", f"order.{to.value}", "", order.maker_id, order.code)
     rl = retailer_language(session, order)
-    notify.send(session, order.retailer_phone,
-                i18n.t("status_update", rl, code=order.code, status=i18n.status(to.value, rl)), order.code)
+    notify.send(
+        session,
+        order.retailer_phone,
+        i18n.t("status_update", rl, code=order.code, status=i18n.status(to.value, rl)),
+        order.code,
+    )
     session.commit()
     session.refresh(order)
     return order

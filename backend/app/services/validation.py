@@ -4,13 +4,16 @@ The website applies the same rules in frontend/index.html (RULES), so people see
 before sending, and the server applies them again so they can't be skipped.
 Each check returns the cleaned value, or raises HTTPException(400, <message to show>).
 """
+
 import re
 import unicodedata
 
 from fastapi import HTTPException
 
-EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
-                      r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$")
+EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$"
+)
 
 
 def _fail(message: str):
@@ -23,8 +26,9 @@ def _squash(value: str | None) -> str:
 
 def _letters_ok(text: str, extra: str) -> bool:
     """Only letters (any language, incl. Marathi/Hindi marks) and the extra characters, with at least one letter."""
-    return (all(ch.isalpha() or unicodedata.category(ch).startswith("M") or ch in extra for ch in text)
-            and any(ch.isalpha() for ch in text))
+    return all(ch.isalpha() or unicodedata.category(ch).startswith("M") or ch in extra for ch in text) and any(
+        ch.isalpha() for ch in text
+    )
 
 
 def person_name(value: str | None) -> str:

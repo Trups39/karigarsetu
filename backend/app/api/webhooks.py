@@ -3,6 +3,7 @@
 Every request is checked with HMAC-SHA256 using META_APP_SECRET, repeats are ignored, and the work
 (Claude, database, replies) runs in the background because Meta expects a quick 200.
 """
+
 import hmac
 import json
 import logging
@@ -29,12 +30,12 @@ def _process_meta(items: list) -> None:
             try:
                 if m.text.strip():
                     whatsapp.handle_incoming(session, m.phone, m.text)
-                else:   # voice note, photo, sticker...: ask for text
+                else:  # voice note, photo, sticker...: ask for text
                     phone = clean_phone(m.phone)
                     notify.record_incoming(session, phone, f"[{m.kind} message]")
                     notify.send(session, phone, i18n.t("not_text", whatsapp.language_for(session, phone)))
                     session.commit()
-            except Exception:   # one bad message must not stop the others; details are in the log
+            except Exception:  # one bad message must not stop the others; details are in the log
                 session.rollback()
                 log.exception("Failed to handle Meta message from %s", m.phone)
 
@@ -43,8 +44,11 @@ def _process_meta(items: list) -> None:
 def meta_verify(request: Request):
     """Meta calls this once when you click "Verify and save" on the webhook form."""
     q = request.query_params
-    if (q.get("hub.mode") == "subscribe" and config.META_VERIFY_TOKEN
-            and hmac.compare_digest(q.get("hub.verify_token", ""), config.META_VERIFY_TOKEN)):
+    if (
+        q.get("hub.mode") == "subscribe"
+        and config.META_VERIFY_TOKEN
+        and hmac.compare_digest(q.get("hub.verify_token", ""), config.META_VERIFY_TOKEN)
+    ):
         return PlainTextResponse(q.get("hub.challenge", ""))
     raise HTTPException(403, "Verify token doesn't match META_VERIFY_TOKEN in backend/.env")
 
@@ -59,7 +63,7 @@ async def meta_webhook_in(request: Request, background: BackgroundTasks):
     try:
         payload = json.loads(raw or b"{}")
     except ValueError:
-        raise HTTPException(400, "Not JSON")
+        raise HTTPException(400, "Not JSON") from None
     items = [m for m in meta.extract_messages(payload) if meta.seen.first_time(m.message_id)]
     if items:
         background.add_task(_process_meta, items)

@@ -6,6 +6,7 @@ Meta calls our webhook in two ways:
   POST /webhooks/meta   for every incoming message (and delivery receipts, which we ignore).
                         Signed with HMAC-SHA256 using the App secret, in the X-Hub-Signature-256 header.
 """
+
 import hashlib
 import hmac
 from collections import OrderedDict
@@ -18,9 +19,9 @@ from ..core import config
 @dataclass
 class Incoming:
     message_id: str
-    phone: str          # digits with country code, e.g. 919876543210
-    kind: str           # "text", "audio", "image", "button", ...
-    text: str           # message text ("" for voice notes, photos, ...)
+    phone: str  # digits with country code, e.g. 919876543210
+    kind: str  # "text", "audio", "image", "button", ...
+    text: str  # message text ("" for voice notes, photos, ...)
 
 
 def signature_ok(raw_body: bytes, header: str | None) -> bool:
@@ -43,11 +44,11 @@ def extract_messages(payload: dict) -> list[Incoming]:
                 kind = m.get("type", "")
                 if kind == "text":
                     text = (m.get("text") or {}).get("body", "")
-                elif kind == "button":                       # quick-reply button on a template
+                elif kind == "button":  # quick-reply button on a template
                     text = (m.get("button") or {}).get("text", "")
-                elif kind == "interactive":                  # list or button reply
+                elif kind == "interactive":  # list or button reply
                     inter = m.get("interactive") or {}
-                    text = ((inter.get("button_reply") or inter.get("list_reply") or {}).get("title", ""))
+                    text = (inter.get("button_reply") or inter.get("list_reply") or {}).get("title", "")
                 else:
                     text = ""
                 out.append(Incoming(m.get("id", ""), m.get("from", ""), kind, text))

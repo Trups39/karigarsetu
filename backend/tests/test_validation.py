@@ -1,4 +1,5 @@
 """The shared field rules (app/validation.py) used by sign-up, the contact form and add-a-design."""
+
 import pytest
 from fastapi import HTTPException
 
@@ -16,8 +17,16 @@ def test_person_name_ok(value):
     assert V.person_name(value) == " ".join(value.split())
 
 
-@pytest.mark.parametrize("value,msg", [("", "enter your name"), ("A", "enter your name"), ("12", "letters"),
-                                       ("<b>x</b>", "letters"), ("x" * 101, "too long")])
+@pytest.mark.parametrize(
+    "value,msg",
+    [
+        ("", "enter your name"),
+        ("A", "enter your name"),
+        ("12", "letters"),
+        ("<b>x</b>", "letters"),
+        ("x" * 101, "too long"),
+    ],
+)
 def test_person_name_bad(value, msg):
     assert msg in bad(V.person_name, value)
 
@@ -29,14 +38,28 @@ def test_business_and_place():
     assert "town or city" in bad(V.place_or_craft, "@@", "town or city").lower()
 
 
-@pytest.mark.parametrize("raw,digits", [("98220 12345", "919822012345"), ("+91 98220-12345", "919822012345"),
-                                        ("098220 12345", "919822012345"), ("+1 315 886 5652", "13158865652")])
+@pytest.mark.parametrize(
+    "raw,digits",
+    [
+        ("98220 12345", "919822012345"),
+        ("+91 98220-12345", "919822012345"),
+        ("098220 12345", "919822012345"),
+        ("+1 315 886 5652", "13158865652"),
+    ],
+)
 def test_whatsapp_ok(raw, digits):
     assert V.whatsapp(raw) == digits
 
 
-@pytest.mark.parametrize("raw,msg", [("", "enter your WhatsApp"), ("abc", "digits"), ("12345", "valid WhatsApp"),
-                                     ("12345 67890", "start with 6, 7, 8 or 9")])
+@pytest.mark.parametrize(
+    "raw,msg",
+    [
+        ("", "enter your WhatsApp"),
+        ("abc", "digits"),
+        ("12345", "valid WhatsApp"),
+        ("12345 67890", "start with 6, 7, 8 or 9"),
+    ],
+)
 def test_whatsapp_bad(raw, msg):
     assert msg in bad(V.whatsapp, raw)
 
@@ -50,9 +73,16 @@ def test_email_ok_and_lowercased():
     assert V.email("  Trupti@KarigarSetu.co.in ") == "trupti@karigarsetu.co.in"
 
 
-@pytest.mark.parametrize("pw,msg", [("short1", "at least 8"), ("onlyletters", "letter and one number"),
-                                    ("12345678", "letter and one number"), (" goodpass1", "space"),
-                                    ("a1" * 40, "too long")])
+@pytest.mark.parametrize(
+    "pw,msg",
+    [
+        ("short1", "at least 8"),
+        ("onlyletters", "letter and one number"),
+        ("12345678", "letter and one number"),
+        (" goodpass1", "space"),
+        ("a1" * 40, "too long"),
+    ],
+)
 def test_password_bad(pw, msg):
     assert msg in bad(V.new_password, pw)
 

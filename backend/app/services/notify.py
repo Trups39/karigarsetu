@@ -4,6 +4,7 @@ Every message is stored in the Message table (so the demo works offline and the 
 It is also sent for real through Meta's WhatsApp Cloud API when that is set up
 (see config.whatsapp_provider).
 """
+
 import logging
 
 import httpx
@@ -13,6 +14,7 @@ from ..core import config
 from ..core.models import Message
 
 log = logging.getLogger("karigarsetu.notify")
+
 
 def _meta_send(phone: str, body: str) -> bool:
     """Send a text with Meta's WhatsApp Cloud API.
@@ -24,9 +26,18 @@ def _meta_send(phone: str, body: str) -> bool:
         return False
     url = f"https://graph.facebook.com/{config.META_GRAPH_VERSION}/{config.META_PHONE_NUMBER_ID}/messages"
     try:
-        r = httpx.post(url, timeout=10, headers={"Authorization": f"Bearer {config.META_WHATSAPP_TOKEN}"},
-                       json={"messaging_product": "whatsapp", "recipient_type": "individual", "to": phone,
-                             "type": "text", "text": {"preview_url": False, "body": body[:4096]}})
+        r = httpx.post(
+            url,
+            timeout=10,
+            headers={"Authorization": f"Bearer {config.META_WHATSAPP_TOKEN}"},
+            json={
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": phone,
+                "type": "text",
+                "text": {"preview_url": False, "body": body[:4096]},
+            },
+        )
         if r.status_code >= 400:
             log.warning("WhatsApp (Meta) send to %s failed: %s %s", phone, r.status_code, r.text[:300])
             return False

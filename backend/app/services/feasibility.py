@@ -1,4 +1,5 @@
 """Stock + production feasibility. Plain arithmetic: the AI never decides these numbers."""
+
 import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -83,9 +84,18 @@ def check(session: Session, product: Product, lines: dict[int, int], start: date
         days = 1  # ready stock: pack and dispatch next day
 
     return Feasibility(
-        product_code=product.code, product_name=product.name, total=total,
-        ready=ready_total, to_make=make_total, pairs_per_day=product.pairs_per_day,
-        already_committed=committed, buffer_days=maker.buffer_days, days_needed=days,
-        earliest_date=start + timedelta(days=days), price_per_pair=product.price_per_pair,
-        total_price=total * product.price_per_pair, lines=out_lines, problems=problems,
+        product_code=product.code,
+        product_name=product.name,
+        total=total,
+        ready=ready_total,
+        to_make=make_total,
+        pairs_per_day=product.pairs_per_day,
+        already_committed=committed,
+        buffer_days=maker.buffer_days,
+        days_needed=days,
+        earliest_date=start + timedelta(days=days),
+        price_per_pair=product.price_per_pair,
+        total_price=total * product.price_per_pair,
+        lines=out_lines,
+        problems=problems,
     )

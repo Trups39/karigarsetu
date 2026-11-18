@@ -4,6 +4,7 @@ linked to its maker. No HTTP here: the routes are in api/accounts.py and api/adm
 Flow: a maker signs up -> account "pending" -> the KarigarSetu team approves it at /admin
 -> a Maker is created (or linked by WhatsApp number) -> the maker logs in and gets their dashboard.
 """
+
 import logging
 from datetime import timedelta
 from typing import Optional
@@ -26,6 +27,7 @@ PENDING = "Your account is under review. We'll message you on WhatsApp once it's
 
 # ---------- passwords ----------
 
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=config.BCRYPT_ROUNDS)).decode()
 
@@ -33,7 +35,7 @@ def hash_password(password: str) -> str:
 def password_ok(password: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw((password or "").encode(), hashed.encode())
-    except ValueError:   # malformed hash, or password longer than 72 bytes
+    except ValueError:  # malformed hash, or password longer than 72 bytes
         return False
 
 
@@ -48,12 +50,23 @@ def dummy_hash() -> str:
 
 
 def account_view(a: SupplierAccount) -> dict:
-    return {"id": a.id, "name": a.name, "business_name": a.business_name, "craft": a.craft, "town": a.town,
-            "phone": a.phone, "email": a.email, "status": a.status, "maker_id": a.maker_id,
-            "created_at": a.created_at, "reviewed_at": a.reviewed_at}
+    return {
+        "id": a.id,
+        "name": a.name,
+        "business_name": a.business_name,
+        "craft": a.craft,
+        "town": a.town,
+        "phone": a.phone,
+        "email": a.email,
+        "status": a.status,
+        "maker_id": a.maker_id,
+        "created_at": a.created_at,
+        "reviewed_at": a.reviewed_at,
+    }
 
 
 # ---------- admin sessions (httpOnly cookie) ----------
+
 
 def _admin_token_ok(session: Session, token: Optional[str]) -> bool:
     if not token or not config.ADMIN_PASSWORD:
@@ -82,6 +95,7 @@ def end_admin_session(request: Request, response: Response, session: Session) ->
 
 # ---------- approving and rejecting ----------
 
+
 def approve_account(session: Session, a: SupplierAccount) -> SupplierAccount:
     """Link to the maker with this WhatsApp number, or create one. Then tell them on WhatsApp."""
     was = a.status
@@ -96,8 +110,9 @@ def approve_account(session: Session, a: SupplierAccount) -> SupplierAccount:
     session.commit()
     audit.log(session, "System", "account.approved", f"{a.business_name} ({a.email}) approved", maker.id)
     if was != AccountStatus.approved:
-        notify.send(session, maker.phone, i18n.t("account_approved", maker.language, name=a.name,
-                                                 business=a.business_name))
+        notify.send(
+            session, maker.phone, i18n.t("account_approved", maker.language, name=a.name, business=a.business_name)
+        )
         session.commit()
     return a
 
@@ -105,7 +120,7 @@ def approve_account(session: Session, a: SupplierAccount) -> SupplierAccount:
 def reject_account(session: Session, a: SupplierAccount) -> SupplierAccount:
     a.status, a.reviewed_at = AccountStatus.rejected, utcnow()
     session.add(a)
-    if a.maker_id:   # log them out everywhere
+    if a.maker_id:  # log them out everywhere
         for s in session.exec(select(MakerSession).where(MakerSession.maker_id == a.maker_id)):
             session.delete(s)
     session.commit()
@@ -114,6 +129,7 @@ def reject_account(session: Session, a: SupplierAccount) -> SupplierAccount:
 
 
 # ---------- keep accounts linked to their maker (after a reset, the makers are recreated) ----------
+
 
 def relink_accounts(session: Session) -> int:
     """Every approved account points at the maker with its WhatsApp number (created if missing).

@@ -17,6 +17,7 @@ def init_db() -> None:
     from sqlalchemy.exc import OperationalError
 
     from . import models  # noqa: F401  (registers tables)
+
     try:
         SQLModel.metadata.create_all(engine)
     except OperationalError as e:
@@ -24,7 +25,8 @@ def init_db() -> None:
             f"\nCan't connect to the database at {engine.url.render_as_string(hide_password=True)}\n"
             "Check that PostgreSQL is running, the database exists, and the user and password in "
             "DATABASE_URL (backend/.env) are right.\n"
-            f"Details: {e.orig}\n") from None
+            f"Details: {e.orig}\n"
+        ) from None
 
 
 def get_session():

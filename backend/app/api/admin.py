@@ -3,6 +3,7 @@
 The admin logs in with ADMIN_EMAIL + ADMIN_PASSWORD and gets an httpOnly cookie. Changes need the
 X-Requested-With: KarigarSetu header, which a form on another website can't send.
 """
+
 import hmac
 import secrets
 import time
@@ -18,11 +19,10 @@ from ..core import config
 from ..core.db import get_session
 from ..core.models import AccountStatus, AdminSession, SupplierAccount
 from ..core.security import token_hash
-from ..services.accounts import (ADMIN_COOKIE, end_admin_session, account_view, approve_account, is_admin,
-                                 reject_account)
+from ..services.accounts import ADMIN_COOKIE, account_view, approve_account, end_admin_session, is_admin, reject_account
 
 router = APIRouter()
-ADMIN_PAGE = Path(__file__).resolve().parents[3] / "frontend" / "admin.html"   # karigarsetu/frontend/admin.html
+ADMIN_PAGE = Path(__file__).resolve().parents[3] / "frontend" / "admin.html"  # karigarsetu/frontend/admin.html
 _admin_fails: dict[str, list[float]] = {}
 
 
@@ -56,8 +56,9 @@ def admin_login(body: AdminLoginIn, request: Request, session: Session = Depends
     _admin_fails[key] = [t for t in _admin_fails.get(key, []) if now - t < 900]
     if len(_admin_fails[key]) >= 5:
         raise HTTPException(429, "Too many wrong attempts. Try again in 15 minutes.")
-    email_ok = not config.ADMIN_EMAIL or hmac.compare_digest((body.email or "").strip().lower().encode(),
-                                                             config.ADMIN_EMAIL.encode())
+    email_ok = not config.ADMIN_EMAIL or hmac.compare_digest(
+        (body.email or "").strip().lower().encode(), config.ADMIN_EMAIL.encode()
+    )
     password_ok_ = hmac.compare_digest((body.password or "").encode(), config.ADMIN_PASSWORD.encode())
     if not (email_ok and password_ok_):
         _admin_fails[key].append(now)
@@ -67,8 +68,15 @@ def admin_login(body: AdminLoginIn, request: Request, session: Session = Depends
     session.add(AdminSession(token=token_hash(token)))
     session.commit()
     resp = JSONResponse({"ok": True})
-    resp.set_cookie(ADMIN_COOKIE, token, max_age=config.ADMIN_SESSION_HOURS * 3600, httponly=True,
-                    secure=config.COOKIE_SECURE, samesite="lax", path="/")
+    resp.set_cookie(
+        ADMIN_COOKIE,
+        token,
+        max_age=config.ADMIN_SESSION_HOURS * 3600,
+        httponly=True,
+        secure=config.COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
     return resp
 
 
@@ -80,8 +88,11 @@ def admin_logout(request: Request, response: Response, session: Session = Depend
 
 @router.get("/api/admin/me", tags=["admin"])
 def admin_me(request: Request, session: Session = Depends(get_session)):
-    return {"admin": is_admin(request, session), "enabled": bool(config.ADMIN_PASSWORD),
-            "needs_email": bool(config.ADMIN_EMAIL)}
+    return {
+        "admin": is_admin(request, session),
+        "enabled": bool(config.ADMIN_PASSWORD),
+        "needs_email": bool(config.ADMIN_EMAIL),
+    }
 
 
 @router.get("/api/admin/accounts", dependencies=[Depends(require_admin)], tags=["admin"])
@@ -101,14 +112,18 @@ def _account(session: Session, account_id: int) -> SupplierAccount:
     return a
 
 
-@router.post("/api/admin/accounts/{account_id}/approve", dependencies=[Depends(require_admin), Depends(same_site)],
-             tags=["admin"])
+@router.post(
+    "/api/admin/accounts/{account_id}/approve",
+    dependencies=[Depends(require_admin), Depends(same_site)],
+    tags=["admin"],
+)
 def admin_approve(account_id: int, session: Session = Depends(get_session)):
     return account_view(approve_account(session, _account(session, account_id)))
 
 
-@router.post("/api/admin/accounts/{account_id}/reject", dependencies=[Depends(require_admin), Depends(same_site)],
-             tags=["admin"])
+@router.post(
+    "/api/admin/accounts/{account_id}/reject", dependencies=[Depends(require_admin), Depends(same_site)], tags=["admin"]
+)
 def admin_reject(account_id: int, session: Session = Depends(get_session)):
     return account_view(reject_account(session, _account(session, account_id)))
 

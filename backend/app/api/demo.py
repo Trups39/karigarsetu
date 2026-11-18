@@ -1,4 +1,5 @@
 """Dashboard demo buttons ("Simulate new WhatsApp order", "Simulate retailer accepts"). Off when DEMO_MODE=false."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, func, select
 
@@ -9,10 +10,12 @@ from ..core.security import current_maker
 from ..services import orders
 from .common import RetailerReplyIn, order_view
 
-DEMO_RETAILERS = [("Kolhapur Footwear Mart", "Kolhapur", "Marathi", "919811110001"),
-                  ("Mumbai Craft Co.", "Mumbai", "English", "919811110002"),
-                  ("Indore Juti Ghar", "Indore", "Hindi", "919811110003"),
-                  ("Satara Chappal Bazaar", "Satara", "Marathi", "919811110004")]
+DEMO_RETAILERS = [
+    ("Kolhapur Footwear Mart", "Kolhapur", "Marathi", "919811110001"),
+    ("Mumbai Craft Co.", "Mumbai", "English", "919811110002"),
+    ("Indore Juti Ghar", "Indore", "Hindi", "919811110003"),
+    ("Satara Chappal Bazaar", "Satara", "Marathi", "919811110004"),
+]
 
 
 def demo_only():
@@ -32,9 +35,10 @@ def demo_simulate_order(maker: Maker = Depends(current_maker), session: Session 
         raise HTTPException(409, "Add your designs first (Products), then simulate an order.")
     pune = session.exec(select(Retailer).where(Retailer.name == "Pune Footwear House")).first()
     pune_phone = pune.phone if pune else "919811112222"
-    pune_done = session.exec(select(Order).where(Order.maker_id == maker.id,
-                                                 Order.retailer_phone == pune_phone)).first()
-    if not pune_done:   # the first one is the demo story: a Pune shop orders 50 pairs
+    pune_done = session.exec(
+        select(Order).where(Order.maker_id == maker.id, Order.retailer_phone == pune_phone)
+    ).first()
+    if not pune_done:  # the first one is the demo story: a Pune shop orders 50 pairs
         name, city, lang, phone = "Pune Footwear House", "Pune", "Marathi", pune_phone
         p = next((x for x in products_ if x.code == "classic"), products_[0])
         lines = {7: 15, 8: 20, 9: 15}
@@ -45,12 +49,22 @@ def demo_simulate_order(maker: Maker = Depends(current_maker), session: Session 
         lines = {sizes[0]: 6 + (n % 5) * 2, sizes[1]: 10 + (n % 3) * 4, sizes[2]: 6 + (n % 4) * 2}
     if sum(lines.values()) < maker.min_order:
         lines[sizes[1]] += maker.min_order - sum(lines.values())
-    o, _ = orders.create(session, maker_id=maker.id, product_code=p.code, lines=lines, retailer_name=name,
-                         retailer_phone=phone, city=city, language=lang, source_text="(simulated WhatsApp order)")
+    o, _ = orders.create(
+        session,
+        maker_id=maker.id,
+        product_code=p.code,
+        lines=lines,
+        retailer_name=name,
+        retailer_phone=phone,
+        city=city,
+        language=lang,
+        source_text="(simulated WhatsApp order)",
+    )
     return order_view(session, o)
 
 
 @router.post("/api/demo/orders/{code}/retailer-reply")
-def demo_retailer_reply(code: str, body: RetailerReplyIn, maker: Maker = Depends(current_maker),
-                        session: Session = Depends(get_session)):
+def demo_retailer_reply(
+    code: str, body: RetailerReplyIn, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)
+):
     return order_view(session, orders.retailer_reply(session, orders.get_by_code(session, code, maker.id), body.accept))

@@ -84,6 +84,10 @@ Built for the **Claude × GoDaddy hackathon** (agentic business solutions for sm
 ```
 karigarsetu/
 ├── README.md
+├── DEPLOY.md                       step-by-step deployment on the VPS (Docker, HTTPS, WhatsApp webhook)
+├── Dockerfile                      app image (backend + website)
+├── docker-compose.yml              production: app + PostgreSQL + Caddy (HTTPS)
+├── Caddyfile                       HTTPS for karigarsetu.co.in
 ├── .gitignore                      keeps .env, .venv, databases and test reports out of git
 ├── .github/workflows/ci.yml        GitHub Actions: secret check + all tests on SQLite and PostgreSQL, on every push
 │
@@ -94,6 +98,7 @@ karigarsetu/
 │
 └── backend/
     ├── requirements.txt
+    ├── pyproject.toml              code style (Ruff)
     ├── .env.example                every setting, with comments (copy to .env)
     │
     ├── app/
@@ -213,13 +218,14 @@ Your own maker is never in these files: sign up on the website and approve it at
 cd backend
 python -m pytest -q          # 105 unit tests; fake Claude, no real WhatsApp or email
 python -m agent_eval.run     # 27 scenarios with the real Claude on a temporary database
+ruff check . ; ruff format .  # code style (pip install ruff)
 ```
 
 The agent scenarios cover: full Marathi order flow with counter-offer; Hindi and English orders; minimum order, unknown size or design; asking which maker; a shop pushing a lower price; another shop's order; prompt injection; maker refusals (negative stock, past dates, skipping steps, another maker's order); capacity, buffer and language changes; quick replies; and fallbacks with Claude off or a wrong key. Each checks the database (order created or not, status, price, stock), not only the reply text.
 
 To run the unit tests on PostgreSQL, set `TEST_DATABASE_URL` to an empty test database (it gets wiped).
 
-**CI:** every push and pull request runs `.github/workflows/ci.yml` on GitHub Actions: a check that no `.env` or API key is committed, then all unit tests on SQLite and on a real PostgreSQL. The badge at the top shows the result.
+**CI:** every push and pull request runs `.github/workflows/ci.yml` on GitHub Actions: a check that no `.env` or API key is committed, a Ruff code-style check, then all unit tests on SQLite and on a real PostgreSQL. The badge at the top shows the result.
 
 ## Connect WhatsApp (Meta Cloud API)
 
@@ -246,7 +252,11 @@ The test number can only reply to the registered phones, and its temporary token
 | Meta | `GET/POST /webhooks/meta` | Incoming WhatsApp messages |
 | Internal | `POST /internal/simulate-message`, `/internal/orders`, `/internal/feasibility` | Testing and tools (header `X-Internal-Key`) |
 
-## Before going live
+## Deployment
+
+Production runs with Docker on the VPS: the app, PostgreSQL and Caddy (automatic HTTPS for karigarsetu.co.in). Step by step: **[DEPLOY.md](DEPLOY.md)**.
+
+Before going live:
 
 - Strong `ADMIN_PASSWORD`, a new `INTERNAL_API_KEY` and `META_VERIFY_TOKEN`, `COOKIE_SECURE=true`, `PUBLIC_URL=https://karigarsetu.co.in`.
 - PostgreSQL, HTTPS on the domain, and the Meta webhook pointing at it.

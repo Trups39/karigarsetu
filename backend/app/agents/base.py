@@ -4,6 +4,7 @@ One call to run_agent_loop() handles one incoming WhatsApp message: it loads thi
 calls Claude, runs any tools Claude asks for, and saves the memory again. If Claude fails, the person
 gets a polite message instead of an error. Prompt caching keeps repeated calls cheap and fast.
 """
+
 import json
 import logging
 
@@ -29,6 +30,7 @@ def _trim(history: list, keep: int = 30) -> list:
 def whatsapp_format(text: str) -> str:
     """Turn website-style markdown into WhatsApp style: **bold** -> *bold*, drop # headings."""
     import re
+
     text = re.sub(r"\*\*(.+?)\*\*", r"*\1*", text)
     text = re.sub(r"__(.+?)__", r"_\1_", text)
     text = re.sub(r"(?m)^#{1,6}\s*", "", text)
@@ -81,31 +83,41 @@ def _cached_request(system: str, tools: list, history: list) -> dict:
         if blocks:
             blocks[-1]["cache_control"] = CACHE
             messages[-1] = {"role": last["role"], "content": blocks}
-    return {"system": [{"type": "text", "text": system, "cache_control": CACHE}], "tools": tools_c,
-            "messages": messages}
+    return {
+        "system": [{"type": "text", "text": system, "cache_control": CACHE}],
+        "tools": tools_c,
+        "messages": messages,
+    }
 
 
 def _log_usage(resp) -> None:
     u = getattr(resp, "usage", None)
     if u is not None:
-        log.info("Claude tokens: input %s, cache read %s, cache write %s, output %s",
-                 getattr(u, "input_tokens", "?"), getattr(u, "cache_read_input_tokens", 0),
-                 getattr(u, "cache_creation_input_tokens", 0), getattr(u, "output_tokens", "?"))
+        log.info(
+            "Claude tokens: input %s, cache read %s, cache write %s, output %s",
+            getattr(u, "input_tokens", "?"),
+            getattr(u, "cache_read_input_tokens", 0),
+            getattr(u, "cache_creation_input_tokens", 0),
+            getattr(u, "output_tokens", "?"),
+        )
 
 
-NUDGE = ("(Note from the system, not the customer: you ended without a message. Write your WhatsApp reply "
-         "to the person now, in their language.)")
+NUDGE = (
+    "(Note from the system, not the customer: you ended without a message. Write your WhatsApp reply "
+    "to the person now, in their language.)"
+)
 
 
 def _converse(client, system: str, tools: list, history: list, execute) -> str | None:
     """One user turn: call Claude, run any tools it asks for, until it answers. None = gave up.
     If Claude stops without any text (it ran out of room, or forgot), it is asked once for the reply."""
     nudged = False
-    for _ in range(8):   # tool-use loop
-        resp = client.messages.create(model=config.CLAUDE_MODEL, max_tokens=config.CLAUDE_MAX_TOKENS,
-                                      **_cached_request(system, tools, history))
+    for _ in range(8):  # tool-use loop
+        resp = client.messages.create(
+            model=config.CLAUDE_MODEL, max_tokens=config.CLAUDE_MAX_TOKENS, **_cached_request(system, tools, history)
+        )
         _log_usage(resp)
-        if resp.stop_reason == "max_tokens":   # cut off: a half-written tool call can't be sent back
+        if resp.stop_reason == "max_tokens":  # cut off: a half-written tool call can't be sent back
             log.warning("Claude hit max_tokens (%s); asking for the reply again", config.CLAUDE_MAX_TOKENS)
             blocks = [b for b in resp.content if b.type == "text"]
         else:
@@ -130,8 +142,9 @@ def _converse(client, system: str, tools: list, history: list, execute) -> str |
     return None
 
 
-def run_agent_loop(session: Session, phone: str, text: str, system: str, tools: list, execute,
-                   give_up: str, memory: str = "sales") -> str:
+def run_agent_loop(
+    session: Session, phone: str, text: str, system: str, tools: list, execute, give_up: str, memory: str = "sales"
+) -> str:
     """Shared Claude tool-use loop for both agents. execute(name, args) -> dict runs one tool.
 
     Chat memory is kept per agent and phone ("sales:<phone>" / "ops:<phone>") in the Conversation table.
@@ -140,7 +153,7 @@ def run_agent_loop(session: Session, phone: str, text: str, system: str, tools: 
     """
     import anthropic
 
-    key = f"{memory}:{phone}"   # separate memory per agent, so a number that changes role never mixes chats
+    key = f"{memory}:{phone}"  # separate memory per agent, so a number that changes role never mixes chats
     conv = session.get(Conversation, key) or Conversation(phone=key)
     saved = _for_memory(json.loads(conv.history))
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -151,7 +164,7 @@ def run_agent_loop(session: Session, phone: str, text: str, system: str, tools: 
         try:
             reply = _converse(client, system, tools, history, execute)
             break
-        except Exception as e:   # noqa: BLE001  (never crash the webhook)
+        except Exception as e:  # noqa: BLE001  (never crash the webhook)
             status = getattr(e, "status_code", None)
             if attempt == 0 and status == 400 and saved:
                 log.warning("Claude rejected saved history for %s (%s); retrying with a fresh chat", phone, e)
@@ -162,7 +175,7 @@ def run_agent_loop(session: Session, phone: str, text: str, system: str, tools: 
 
     if reply is None:
         reply = give_up
-    conv = session.get(Conversation, key) or Conversation(phone=key)   # re-fetch: a tool may have rolled back
+    conv = session.get(Conversation, key) or Conversation(phone=key)  # re-fetch: a tool may have rolled back
     conv.history = json.dumps(_trim(_for_memory(history)), default=str)
     conv.updated_at = utcnow()
     session.add(conv)

@@ -3,6 +3,7 @@
 /internal/simulate-message pretends a WhatsApp message arrived: the same path as a real message,
 handy for testing the agents without a phone.
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -38,7 +39,9 @@ class SimulateIn(BaseModel):
 
 @router.post("/internal/feasibility")
 def internal_feasibility(body: FeasibilityIn, session: Session = Depends(get_session)):
-    p = session.exec(select(Product).where(Product.maker_id == body.maker_id, Product.code == body.product_code)).first()
+    p = session.exec(
+        select(Product).where(Product.maker_id == body.maker_id, Product.code == body.product_code)
+    ).first()
     if not p:
         raise HTTPException(404, "Unknown product")
     return feasibility.check(session, p, {ln.size: ln.qty for ln in body.lines}).as_dict()
@@ -49,9 +52,17 @@ def internal_create_order(body: OrderIn, session: Session = Depends(get_session)
     lines: dict[int, int] = {}
     for ln in body.lines:
         lines[ln.size] = lines.get(ln.size, 0) + ln.qty
-    o, f = orders.create(session, maker_id=body.maker_id, product_code=body.product_code, lines=lines,
-                         retailer_name=body.retailer_name, retailer_phone=clean_phone(body.retailer_phone),
-                         city=body.city, language=body.language, source_text=body.source_text)
+    o, f = orders.create(
+        session,
+        maker_id=body.maker_id,
+        product_code=body.product_code,
+        lines=lines,
+        retailer_name=body.retailer_name,
+        retailer_phone=clean_phone(body.retailer_phone),
+        city=body.city,
+        language=body.language,
+        source_text=body.source_text,
+    )
     return {"order": order_view(session, o), "feasibility": f.as_dict()}
 
 

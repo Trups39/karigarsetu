@@ -1,0 +1,41 @@
+# Production: app + PostgreSQL + Caddy (automatic HTTPS for karigarsetu.co.in).
+# All settings come from backend/.env (see DEPLOY.md).   Start:  docker compose up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: backend/.env                 # uses POSTGRES_PASSWORD
+    environment:
+      POSTGRES_USER: karigarsetu
+      POSTGRES_DB: karigarsetu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U karigarsetu -d karigarsetu"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    expose: ["8000"]                       # only Caddy can reach it; not open to the internet
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data                   # HTTPS certificates
+      - caddy_config:/config
+    depends_on: [app]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

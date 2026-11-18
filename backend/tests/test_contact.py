@@ -1,17 +1,22 @@
 """Website contact form (Titan email), new-supplier alert email, and the home page's maker list."""
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, select
 
-from app.core import config
 from app.api import contact
+from app.core import config
 from app.core.db import engine
-from app.main import app
 from app.core.models import ContactMessage
+from app.main import app
 from app.services import mailer
 
-GOOD = {"name": "Rahul Patil", "email": "Rahul@Shop.in", "phone": "+91 98220 11111",
-        "message": "We run a footwear shop in Satara and want 100 pairs a month."}
+GOOD = {
+    "name": "Rahul Patil",
+    "email": "Rahul@Shop.in",
+    "phone": "+91 98220 11111",
+    "message": "We run a footwear shop in Satara and want 100 pairs a month.",
+}
 
 
 @pytest.fixture()
@@ -61,11 +66,21 @@ def test_contact_form_emails_the_mailbox_and_saves(client, sent):
         assert row.emailed and row.email == "rahul@shop.in"
 
 
-@pytest.mark.parametrize("field,value,error", [
-    ("name", "", "name"), ("name", "12", "letters"), ("name", "<script>", "letters"),
-    ("email", "not-an-email", "email"), ("email", "a@b.c", "email"), ("email", "a..b@shop.in", "email"),
-    ("phone", "abc", "digits"), ("phone", "12345", "10 to 15"),
-    ("message", "hi", "message"), ("message", "x" * 2001, "too long")])
+@pytest.mark.parametrize(
+    "field,value,error",
+    [
+        ("name", "", "name"),
+        ("name", "12", "letters"),
+        ("name", "<script>", "letters"),
+        ("email", "not-an-email", "email"),
+        ("email", "a@b.c", "email"),
+        ("email", "a..b@shop.in", "email"),
+        ("phone", "abc", "digits"),
+        ("phone", "12345", "10 to 15"),
+        ("message", "hi", "message"),
+        ("message", "x" * 2001, "too long"),
+    ],
+)
 def test_contact_form_validation(client, sent, field, value, error):
     r = client.post("/api/contact", json={**GOOD, field: value})
     assert r.status_code == 400 and error in r.json()["detail"]
@@ -74,7 +89,7 @@ def test_contact_form_validation(client, sent, field, value, error):
 
 def test_contact_form_honeypot_and_rate_limit(client, sent):
     r = client.post("/api/contact", json={**GOOD, "website": "http://spam.example"})
-    assert r.status_code == 200 and not sent                      # bot: looks fine, nothing sent
+    assert r.status_code == 200 and not sent  # bot: looks fine, nothing sent
     for _ in range(5):
         assert client.post("/api/contact", json=GOOD).status_code == 200
     assert client.post("/api/contact", json=GOOD).status_code == 429
@@ -90,6 +105,7 @@ def test_contact_form_without_smtp_still_saves(client, monkeypatch):
 def test_contact_form_email_failure_is_reported(client, monkeypatch, sent):
     def broken(*a, **kw):
         raise OSError("connection refused")
+
     monkeypatch.setattr(mailer.smtplib, "SMTP_SSL", broken)
     r = client.post("/api/contact", json=GOOD)
     assert r.status_code == 502 and "contact@karigarsetu.co.in" in r.json()["detail"]
@@ -97,9 +113,19 @@ def test_contact_form_email_failure_is_reported(client, monkeypatch, sent):
 
 def test_new_supplier_signup_emails_the_team(client, sent, monkeypatch):
     monkeypatch.setattr(config, "PUBLIC_URL", "https://karigarsetu.co.in")
-    r = client.post("/auth/signup", json={"name": "Asha", "business_name": "Asha Chappals", "craft": "Kolhapuri",
-                                          "town": "Kolhapur", "phone": "9822012345", "email": "asha@example.com",
-                                          "password": "goodpass123", "confirm_password": "goodpass123"})
+    r = client.post(
+        "/auth/signup",
+        json={
+            "name": "Asha",
+            "business_name": "Asha Chappals",
+            "craft": "Kolhapuri",
+            "town": "Kolhapur",
+            "phone": "9822012345",
+            "email": "asha@example.com",
+            "password": "goodpass123",
+            "confirm_password": "goodpass123",
+        },
+    )
     assert r.status_code == 201
     assert len(sent) == 1 and "Asha Chappals" in sent[0]["Subject"]
     assert "https://karigarsetu.co.in/admin" in sent[0].get_content()
@@ -117,14 +143,25 @@ def test_public_makers_use_the_bot_number(client, monkeypatch):
 
 
 def test_public_makers_hide_pending_and_empty_makers(client):
-    client.post("/auth/signup", json={"name": "Asha", "business_name": "Asha Chappals", "craft": "Kolhapuri",
-                                      "town": "Kolhapur", "phone": "9822012345", "email": "asha@example.com",
-                                      "password": "goodpass123", "confirm_password": "goodpass123"})
+    client.post(
+        "/auth/signup",
+        json={
+            "name": "Asha",
+            "business_name": "Asha Chappals",
+            "craft": "Kolhapuri",
+            "town": "Kolhapur",
+            "phone": "9822012345",
+            "email": "asha@example.com",
+            "password": "goodpass123",
+            "confirm_password": "goodpass123",
+        },
+    )
     names = {m["name"] for m in client.get("/public/makers").json()}
-    assert "Asha Chappals" not in names            # pending: no maker yet; approved without designs: hidden
+    assert "Asha Chappals" not in names  # pending: no maker yet; approved without designs: hidden
 
 
-@pytest.mark.parametrize("name,phone", [("तृप्ती भोसले", ""), ("D'Souza-Patil Jr.", "+91 98220-11111"),
-                                        ("Rahul", "(022) 2345 6789")])
+@pytest.mark.parametrize(
+    "name,phone", [("तृप्ती भोसले", ""), ("D'Souza-Patil Jr.", "+91 98220-11111"), ("Rahul", "(022) 2345 6789")]
+)
 def test_contact_form_accepts_real_names_and_phones(client, sent, name, phone):
     assert client.post("/api/contact", json={**GOOD, "name": name, "phone": phone}).status_code == 200

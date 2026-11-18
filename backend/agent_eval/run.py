@@ -11,6 +11,7 @@ so it costs a little Claude usage (about 1-3 calls per message).
 
 Writes a report to agent_eval/reports/report-<date>.md with every message, reply and check.
 """
+
 import json
 import logging
 import os
@@ -25,23 +26,30 @@ HERE = Path(__file__).resolve().parent
 
 # ---- test settings, before the app is imported (real environment / .env can't override these) ----
 _tmp = tempfile.mkdtemp(prefix="ks-agent-eval-")
-os.environ.update({
-    "DATABASE_URL": "sqlite:///" + os.path.join(_tmp, "eval.db"),
-    "SAMPLE_MAKERS": "true", "SEED_DEMO_ORDERS": "true", "DEMO_TODAY": "2026-11-16",
-    "WHATSAPP_PROVIDER": "none",          # never send real WhatsApp messages from a test
-    "SMTP_USERNAME": "", "SMTP_PASSWORD": "",   # and no real email
-    "DEMO_RETAILER_PHONE": "", "INTERNAL_API_KEY": "agent-eval-key", "ADMIN_PASSWORD": "eval-only",
-})
+os.environ.update(
+    {
+        "DATABASE_URL": "sqlite:///" + os.path.join(_tmp, "eval.db"),
+        "SAMPLE_MAKERS": "true",
+        "SEED_DEMO_ORDERS": "true",
+        "DEMO_TODAY": "2026-11-16",
+        "WHATSAPP_PROVIDER": "none",  # never send real WhatsApp messages from a test
+        "SMTP_USERNAME": "",
+        "SMTP_PASSWORD": "",  # and no real email
+        "DEMO_RETAILER_PHONE": "",
+        "INTERNAL_API_KEY": "agent-eval-key",
+        "ADMIN_PASSWORD": "eval-only",
+    }
+)
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, select  # noqa: E402
 
-from app.core import config
-from app.whatsapp import messages as i18n  # noqa: E402
 from app import seed as seed_mod  # noqa: E402
+from app.core import config  # noqa: E402
 from app.core.db import engine  # noqa: E402
-from app.main import app  # noqa: E402
 from app.core.models import Maker, Order, OrderLine, Product, Stock  # noqa: E402
+from app.main import app  # noqa: E402
+from app.whatsapp import messages as i18n  # noqa: E402
 
 # Only warnings and errors from the app here; the per-call token lines would mix into the pass/FAIL output.
 logging.getLogger("karigarsetu").setLevel(logging.WARNING)
@@ -62,6 +70,7 @@ def language_of(text: str) -> str:
 
 # ---------- reading the database ----------
 
+
 def snapshot(s: Session) -> dict:
     return {o.code: (o.status, o.price_per_pair, o.due_date) for o in s.exec(select(Order))}
 
@@ -72,11 +81,16 @@ def newest_order(s: Session):
 
 def order_fields(s: Session, o: Order) -> dict:
     p = s.get(Product, o.product_id)
-    return {"code": o.code, "maker": s.get(Maker, o.maker_id).name, "design": p.code, "status": o.status.value,
-            "price_per_pair": o.price_per_pair,
-            "total_pairs": sum(ln.qty for ln in s.exec(select(OrderLine).where(OrderLine.order_id == o.id))),
-            "proposed_date": o.proposed_date.isoformat() if o.proposed_date else None,
-            "due_date": o.due_date.isoformat() if o.due_date else None}
+    return {
+        "code": o.code,
+        "maker": s.get(Maker, o.maker_id).name,
+        "design": p.code,
+        "status": o.status.value,
+        "price_per_pair": o.price_per_pair,
+        "total_pairs": sum(ln.qty for ln in s.exec(select(OrderLine).where(OrderLine.order_id == o.id))),
+        "proposed_date": o.proposed_date.isoformat() if o.proposed_date else None,
+        "due_date": o.due_date.isoformat() if o.due_date else None,
+    }
 
 
 def maker_by_name(s: Session, name: str) -> Maker:
@@ -96,6 +110,7 @@ def product_of(s: Session, maker: str, design: str) -> Product:
 
 # ---------- checks ----------
 
+
 def check_step(s: Session, exp: dict, reply: str, before: dict, last: str | None) -> list[tuple[bool, str]]:
     sub = lambda v: v.replace("{last}", last or "?") if isinstance(v, str) else v  # noqa: E731
     out = []
@@ -107,8 +122,13 @@ def check_step(s: Session, exp: dict, reply: str, before: dict, last: str | None
         out.append((False, "reply is empty"))
     if "new_order" in exp:
         ok = bool(created) == exp["new_order"]
-        out.append((ok, f"new order: expected {'yes' if exp['new_order'] else 'no'}, got "
-                        f"{', '.join(created) if created else 'none'}"))
+        out.append(
+            (
+                ok,
+                f"new order: expected {'yes' if exp['new_order'] else 'no'}, got "
+                f"{', '.join(created) if created else 'none'}",
+            )
+        )
     if exp.get("orders_unchanged"):
         changed = [c for c in after if before.get(c) != after[c]]
         out.append((not changed, "orders unchanged" if not changed else f"orders changed: {', '.join(changed)}"))
@@ -165,6 +185,7 @@ def check_step(s: Session, exp: dict, reply: str, before: dict, last: str | None
 
 # ---------- running ----------
 
+
 def fresh_database() -> None:
     seed_mod.reset()
     with Session(engine) as s:
@@ -174,9 +195,15 @@ def fresh_database() -> None:
 def setup_order(client: TestClient, spec: dict, phones: dict) -> str:
     with Session(engine) as s:
         m = maker_by_name(s, spec["maker"])
-    body = {"maker_id": m.id, "product_code": spec["design"], "retailer_name": spec.get("shop_name", "Pune Footwear House"),
-            "retailer_phone": phones["shop"], "city": "Pune", "language": "Marathi",
-            "lines": [{"size": int(k), "qty": v} for k, v in spec["lines"].items()]}
+    body = {
+        "maker_id": m.id,
+        "product_code": spec["design"],
+        "retailer_name": spec.get("shop_name", "Pune Footwear House"),
+        "retailer_phone": phones["shop"],
+        "city": "Pune",
+        "language": "Marathi",
+        "lines": [{"size": int(k), "qty": v} for k, v in spec["lines"].items()],
+    }
     r = client.post("/internal/orders", json=body, headers=HEADERS)
     if r.status_code != 200:
         raise RuntimeError(f"setup_order failed: {r.text}")
@@ -188,7 +215,7 @@ def run_scenario(client: TestClient, sc: dict, phones: dict, real_key: str) -> d
     mode = sc.get("claude", True)
     config.ANTHROPIC_API_KEY = "" if mode is False else ("sk-ant-wrong-key" if mode == "bad_key" else real_key)
     agent_log = logging.getLogger("karigarsetu.agent")
-    agent_log.disabled = mode == "bad_key"   # the expected "invalid key" error would only clutter the output
+    agent_log.disabled = mode == "bad_key"  # the expected "invalid key" error would only clutter the output
     last, results = None, []
     try:
         for step in sc["steps"]:
@@ -223,9 +250,14 @@ def write_report(runs: list[dict]) -> Path:
     (HERE / "reports").mkdir(exist_ok=True)
     path = HERE / "reports" / f"report-{datetime.now():%Y%m%d-%H%M%S}.md"
     ok = sum(r["passed"] for r in runs)
-    lines = [f"# Agent test report, {datetime.now():%d %b %Y %H:%M}", "",
-             f"Model: `{config.CLAUDE_MODEL}` · **{ok}/{len(runs)} scenarios passed**", "",
-             "| Scenario | Result |", "|---|---|"]
+    lines = [
+        f"# Agent test report, {datetime.now():%d %b %Y %H:%M}",
+        "",
+        f"Model: `{config.CLAUDE_MODEL}` · **{ok}/{len(runs)} scenarios passed**",
+        "",
+        "| Scenario | Result |",
+        "|---|---|",
+    ]
     lines += [f"| {r['id']} {r['name']} | {'✅ pass' if r['passed'] else '❌ FAIL'} |" for r in runs]
     for r in runs:
         lines += ["", f"## {r['id']}: {r['name']} {'✅' if r['passed'] else '❌'}"]
@@ -236,9 +268,14 @@ def write_report(runs: list[dict]) -> Path:
             if "error" in st:
                 lines.append(f"- **Error:** {st['error']}")
                 continue
-            lines += ["", f"**{st['from']}:** {st['say']}", "",
-                      "> " + (st["reply"] or "(empty reply)").replace("\n", "\n> "), "",
-                      f"_{st['secs']:.1f}s_"]
+            lines += [
+                "",
+                f"**{st['from']}:** {st['say']}",
+                "",
+                "> " + (st["reply"] or "(empty reply)").replace("\n", "\n> "),
+                "",
+                f"_{st['secs']:.1f}s_",
+            ]
             lines += [f"- {'✅' if okk else '❌'} {msg}" for okk, msg in st["checks"]]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
@@ -269,7 +306,7 @@ def main(argv: list[str]) -> int:
                 for st in run["steps"]:
                     for okk, msg in st["checks"]:
                         if not okk:
-                            where = f"\"{st.get('say', '')[:50]}\"" if "say" in st else st.get("error", "")
+                            where = f'"{st.get("say", "")[:50]}"' if "say" in st else st.get("error", "")
                             print(f"     {RED}✗{END} {msg}  {DIM}{where}{END}")
     path = write_report(runs)
     ok = sum(r["passed"] for r in runs)

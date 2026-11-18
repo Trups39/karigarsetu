@@ -1,4 +1,5 @@
 """Public endpoints: health check, the makers shown on the home page, and contact details."""
+
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends
@@ -30,11 +31,18 @@ def public_makers(session: Session = Depends(get_session)):
             continue
         text = f"Hi, I want to place a bulk order with {m.name} via KarigarSetu"
         number = config.BOT_WHATSAPP_NUMBER or m.phone
-        out.append({"id": m.id, "name": m.name, "place": m.place, "min_order": m.min_order,
-                    "whatsapp": f"https://wa.me/{number}?text={quote(text)}",
-                    "designs": [{"name": p.name, "price_per_pair": p.price_per_pair} for p in ps],
-                    "price_from": min(p.price_per_pair for p in ps),
-                    "pairs_per_day": sum(p.pairs_per_day for p in ps)})
+        out.append(
+            {
+                "id": m.id,
+                "name": m.name,
+                "place": m.place,
+                "min_order": m.min_order,
+                "whatsapp": f"https://wa.me/{number}?text={quote(text)}",
+                "designs": [{"name": p.name, "price_per_pair": p.price_per_pair} for p in ps],
+                "price_from": min(p.price_per_pair for p in ps),
+                "pairs_per_day": sum(p.pairs_per_day for p in ps),
+            }
+        )
     return out
 
 

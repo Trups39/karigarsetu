@@ -2,6 +2,7 @@
 
 Used by both the dashboard API and the Operations Agent, so the same checks and audit entries apply.
 """
+
 from sqlmodel import Session, select
 
 from ..core.models import Maker, Product, Stock
@@ -20,8 +21,9 @@ def product(session: Session, maker: Maker, code: str) -> Product:
 def _stock_row(session: Session, p: Product, size: int) -> Stock:
     if size not in p.size_list():
         raise OrderError(f"{p.name} isn't made in size {size} (sizes: {p.sizes})")
-    return session.exec(select(Stock).where(Stock.product_id == p.id, Stock.size == size)).first() \
-        or Stock(product_id=p.id, size=size, ready=0)
+    return session.exec(select(Stock).where(Stock.product_id == p.id, Stock.size == size)).first() or Stock(
+        product_id=p.id, size=size, ready=0
+    )
 
 
 def set_stock(session: Session, maker: Maker, code: str, size: int, ready: int, actor: str = "Maker") -> Stock:
@@ -81,6 +83,7 @@ def set_maker_settings(session: Session, maker: Maker, actor: str = "Maker", **c
             raise OrderError("Minimum order must be at least 1 pair")
         if key == "language":
             from ..whatsapp import messages as i18n
+
             if value not in i18n.LANGS:
                 raise OrderError(f"Language must be one of: {', '.join(i18n.LANGS)}")
         setattr(maker, key, value)

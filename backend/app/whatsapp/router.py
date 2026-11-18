@@ -5,16 +5,17 @@
 - From a retailer with a pending counter-offer: YES / NO (also हो, नाही, हां, नहीं).
 - Anything else from a retailer goes to the Sales Agent.
 """
+
 import re
 from datetime import date
 
 from sqlmodel import Session, select
 
 from ..agents import operations, sales
-from . import messages as i18n
-from ..core.security import clean_phone, find_maker
 from ..core.models import Maker, Order, OrderStatus, Retailer
+from ..core.security import clean_phone, find_maker
 from ..services import audit, notify, orders
+from . import messages as i18n
 
 YES = {"yes", "y", "ok", "haan", "ha", "हो", "होय", "हां", "हाँ", "हा"}
 NO = {"no", "n", "nahi", "nako", "नाही", "नहीं", "नको"}
@@ -33,7 +34,7 @@ def _maker_reply(session: Session, maker: Maker, text: str) -> str:
     cmd = parts[0] if parts else ""
     m = CODE.search(text)
     order = _pending_for_maker(session, maker, m.group(0) if m else None)
-    if cmd not in {"1", "2", "3"}:   # anything else: the Operations Agent understands normal sentences
+    if cmd not in {"1", "2", "3"}:  # anything else: the Operations Agent understands normal sentences
         return operations.handle_maker_message(session, maker, text)
     lang = maker.language
     if not order:
@@ -78,13 +79,15 @@ def handle_incoming(session: Session, raw_phone: str, text: str) -> str:
         reply = _maker_reply(session, maker, text)
     else:
         word = text.strip().lower().strip("!. ")
-        counter = session.exec(select(Order).where(Order.retailer_phone == phone,
-                                                   Order.status == OrderStatus.counter_offered)
-                               .order_by(Order.created_at.desc())).first()
+        counter = session.exec(
+            select(Order)
+            .where(Order.retailer_phone == phone, Order.status == OrderStatus.counter_offered)
+            .order_by(Order.created_at.desc())
+        ).first()
         if counter and word in YES | NO:
             orders.retailer_reply(session, counter, accept=word in YES)
             session.commit()
-            return ""   # retailer_reply already sent the confirmation or cancellation
+            return ""  # retailer_reply already sent the confirmation or cancellation
         reply = sales.handle_retailer_message(session, phone, text)
 
     notify.send(session, phone, reply)

@@ -3,6 +3,7 @@
 Settings in backend/.env (the password is never in the code or the repo):
     SMTP_HOST=smtp.titan.email   SMTP_PORT=465   SMTP_USERNAME=contact@karigarsetu.co.in   SMTP_PASSWORD=...
 """
+
 import logging
 import smtplib
 import ssl

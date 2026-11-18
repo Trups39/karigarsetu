@@ -3,6 +3,7 @@
 Every message is also saved in the contact_message table, so nothing is lost if email is down.
 Spam protection: a hidden "website" field (bots fill it in), basic checks, and a limit per address.
 """
+
 import logging
 import time
 from typing import Optional
@@ -20,7 +21,7 @@ from ..services import validation as V
 log = logging.getLogger("karigarsetu.contact")
 router = APIRouter()
 
-LIMIT, WINDOW = 5, 3600          # at most 5 messages per hour from one address
+LIMIT, WINDOW = 5, 3600  # at most 5 messages per hour from one address
 _recent: dict[str, list[float]] = {}
 
 
@@ -29,7 +30,7 @@ class ContactIn(BaseModel):
     email: str = ""
     phone: str = ""
     message: str = ""
-    website: str = ""            # honeypot: hidden on the page, people leave it empty
+    website: str = ""  # honeypot: hidden on the page, people leave it empty
 
 
 def _rate_ok(key: str) -> bool:
@@ -44,7 +45,7 @@ def _rate_ok(key: str) -> bool:
 
 @router.post("/api/contact", tags=["public"])
 def contact(body: ContactIn, request: Request, session: Session = Depends(get_session)):
-    if body.website.strip():                       # a bot filled in the hidden field: pretend it worked
+    if body.website.strip():  # a bot filled in the hidden field: pretend it worked
         return {"ok": True, "message": "Thank you! We'll get back to you soon."}
     name, email = V.person_name(body.name), V.email(body.email)
     phone, text = V.optional_phone(body.phone), V.message(body.message)
@@ -56,8 +57,10 @@ def contact(body: ContactIn, request: Request, session: Session = Depends(get_se
     session.commit()
 
     subject = f"KarigarSetu contact form: {name}"
-    body_text = (f"New message from the KarigarSetu website contact form.\n\n"
-                 f"Name:  {name}\nEmail: {email}\nPhone: {phone or '-'}\n\n{text}\n")
+    body_text = (
+        f"New message from the KarigarSetu website contact form.\n\n"
+        f"Name:  {name}\nEmail: {email}\nPhone: {phone or '-'}\n\n{text}\n"
+    )
     try:
         mailer.send_mail(subject, body_text, reply_to=email)
         log.info("Contact form from %s emailed to %s", email, config.CONTACT_TO)
@@ -68,8 +71,9 @@ def contact(body: ContactIn, request: Request, session: Session = Depends(get_se
         log.warning("Contact form saved but not emailed: SMTP is not set up in backend/.env")
     except Exception:  # noqa: BLE001
         log.exception("Contact form saved but the email failed")
-        raise HTTPException(502, f"Sorry, we couldn't send your message right now. "
-                                 f"Please email us at {config.CONTACT_TO}.")
+        raise HTTPException(
+            502, f"Sorry, we couldn't send your message right now. Please email us at {config.CONTACT_TO}."
+        ) from None
     return {"ok": True, "message": "Thank you! We'll get back to you soon."}
 
 
