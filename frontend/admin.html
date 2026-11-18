@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>KarigarSetu admin · Supplier approvals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FBF6EE; --paper:#FFFDF9; --tan-d:#9A5B26; --brown:#3B2416; --ink:#2A1C12; --muted:#7A6555; --line:#EADFCF;
+  --green:#2F7D4F; --green-bg:#E5F3EA; --amber:#9A6200; --amber-bg:#FCF0D6; --red:#A23A2C; --red-bg:#F9E4E0; --gray-bg:#F1ECE4;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;font-size:16px}
+h1,h2{font-family:'Fraunces',Georgia,serif;font-weight:700;color:var(--brown);margin:0 0 .4em;line-height:1.15}
+a{color:var(--tan-d)}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header{background:rgba(251,246,238,.94);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:12px}
+.logo{font-family:'Fraunces',serif;font-weight:700;font-size:21px;color:var(--brown);text-decoration:none}
+.logo span{color:var(--tan-d)}
+.tag{font-size:13px;color:var(--muted);margin-left:8px;font-family:'DM Sans',sans-serif;font-weight:500}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--brown);background:transparent;color:var(--brown);padding:9px 16px;border-radius:999px;font-weight:500;text-decoration:none;font-size:15px}
+.btn:hover{background:var(--gray-bg)}
+.btn.primary{background:var(--brown);color:var(--cream)}
+.btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.sm{padding:5px 12px;font-size:13px}
+.btn:disabled{opacity:.6;cursor:wait}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:24px}
+.center{min-height:calc(100vh - 64px);display:grid;place-items:center;padding:40px 20px}
+.login{width:100%;max-width:380px}
+label{display:block;font-weight:500;font-size:14px;margin-bottom:6px}
+input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus{outline:2px solid var(--tan-d);outline-offset:1px}
+.err{color:var(--red);font-size:13px;margin:8px 0}
+.note{font-size:13px;color:var(--muted)}
+.msg{padding:10px 12px;border-radius:10px;font-size:14px;margin:0 0 14px}
+.msg.ok{background:var(--green-bg);color:var(--green)}
+.msg.warn{background:var(--amber-bg);color:var(--amber)}
+.msg.error{background:var(--red-bg);color:var(--red)}
+main.wrap{padding-top:28px;padding-bottom:60px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 16px}
+.tab{background:var(--paper);border:1px solid var(--line);color:var(--ink);padding:6px 14px;border-radius:999px;font-size:14px}
+.tab.active{background:var(--brown);border-color:var(--brown);color:var(--cream)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;white-space:nowrap}
+td small{color:var(--muted)}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500}
+.badge.pending{background:var(--amber-bg);color:var(--amber)}
+.badge.approved{background:var(--green-bg);color:var(--green)}
+.badge.rejected{background:var(--red-bg);color:var(--red)}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.actions{white-space:nowrap;display:flex;gap:6px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="/">Karigar<span>Setu</span><span class="tag">Admin</span></a>
+  <div id="top"></div>
+</div></header>
+<div id="app"></div>
+
+<script>
+const H = {'Content-Type':'application/json', 'X-Requested-With':'KarigarSetu'};
+let tab = 'pending';
+
+async function call(method, url, body){
+  const r = await fetch(url, {method, headers:H, credentials:'same-origin', body: body ? JSON.stringify(body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok){ const e = new Error(typeof data.detail === 'string' ? data.detail : 'Something went wrong.'); e.status = r.status; throw e; }
+  return data;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when = iso => iso ? new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z')
+  .toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false}) : '';
+const app = document.getElementById('app'), top_ = document.getElementById('top');
+
+function showLogin(enabled, needsEmail){
+  top_.innerHTML = '<a class="btn sm" href="/">Back to site</a>';
+  app.innerHTML = `<div class="center"><form class="card login" id="f" novalidate>
+    <h2>Admin login</h2>
+    <p class="note" style="margin-top:-2px">For the KarigarSetu team: approve new suppliers.</p>
+    ${enabled ? `${needsEmail ? `<label for="em">Admin email</label><input id="em" type="email" autocomplete="username" autofocus style="margin-bottom:12px">` : ''}
+      <label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password" ${needsEmail ? '' : 'autofocus'}>
+      <div class="err" id="err"></div>
+      <button class="btn primary" style="width:100%;justify-content:center" id="go">Log in</button>`
+    : `<div class="msg warn">Admin login is off. Set <b>ADMIN_PASSWORD</b> in backend/.env and restart the server.</div>`}
+  </form></div>`;
+  const f = document.getElementById('f');
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('go'); btn.disabled = true;
+    try {
+      // One login per browser: end any supplier login on this device first.
+      try {
+        const t = localStorage.getItem('ks_token');
+        if (t){ await fetch('/auth/logout', {method:'POST', headers:{Authorization:'Bearer ' + t}}); localStorage.removeItem('ks_token'); }
+      } catch (_) {}
+      const em = document.getElementById('em');
+      await call('POST', '/api/admin/login', {email: em ? em.value : '', password: document.getElementById('pw').value});
+      showAdmin();
+    } catch (err){ document.getElementById('err').textContent = err.message; btn.disabled = false; }
+  });
+}
+
+async function showAdmin(flash){
+  top_.innerHTML = '<a class="btn sm" href="/docs">API docs</a> <button class="btn sm" id="out">Log out</button>';
+  document.getElementById('out').onclick = async () => { try { await call('POST', '/api/admin/logout'); } catch (_) {} start(); };
+  let data;
+  try { data = await call('GET', '/api/admin/accounts' + (tab ? '?status=' + tab : '')); }
+  catch (e){ if (e.status === 401) return start(); app.innerHTML = `<main class="wrap"><div class="msg error">${esc(e.message)}</div></main>`; return; }
+  const c = data.counts;
+  const tabs = [['pending','Pending',c.pending], ['approved','Approved',c.approved], ['rejected','Rejected',c.rejected], ['','All',null]];
+  app.innerHTML = `<main class="wrap">
+    <h1>Supplier approvals</h1>
+    <p class="note">Approving creates the maker (or links the one with the same WhatsApp number) and sends them a WhatsApp message. Rejecting logs them out.</p>
+    <div class="tabs">${tabs.map(([k,l,n]) => `<button class="tab ${tab===k?'active':''}" data-tab="${k}">${l}${n!=null?` (${n})`:''}</button>`).join('')}</div>
+    ${flash ? `<div class="msg ${flash[1]}">${esc(flash[0])}</div>` : ''}
+    <div class="card table-wrap" style="padding:8px 16px">
+      <table><thead><tr><th>Supplier</th><th>Craft · Town</th><th>WhatsApp</th><th>Email</th><th>Signed up</th><th>Status</th><th></th></tr></thead>
+      <tbody>${data.accounts.map(a => `<tr>
+        <td><b>${esc(a.business_name)}</b><br><small>${esc(a.name)}</small></td>
+        <td>${esc(a.craft)}<br><small>${esc(a.town)}</small></td>
+        <td>+${esc(a.phone)}</td><td>${esc(a.email)}</td><td>${esc(when(a.created_at))}</td>
+        <td><span class="badge ${esc(a.status)}">${esc(a.status)}</span></td>
+        <td><div class="actions">
+          ${a.status !== 'approved' ? `<button class="btn ok sm" data-act="approve" data-id="${a.id}">Approve</button>` : ''}
+          ${a.status !== 'rejected' ? `<button class="btn danger sm" data-act="reject" data-id="${a.id}">Reject</button>` : ''}
+        </div></td></tr>`).join('')}</tbody></table>
+      ${data.accounts.length ? '' : '<div class="empty">No suppliers here.</div>'}
+    </div></main>`;
+}
+
+app.addEventListener('click', async e => {
+  const t = e.target.closest('[data-tab]');
+  if (t){ tab = t.dataset.tab; return showAdmin(); }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  b.disabled = true;
+  try {
+    const a = await call('POST', `/api/admin/accounts/${b.dataset.id}/${b.dataset.act}`);
+    showAdmin(a.status === 'approved'
+      ? [`${a.business_name} is approved. They've been sent a WhatsApp message and can log in now.`, 'ok']
+      : [`${a.business_name} was rejected.`, 'warn']);
+  } catch (err){ if (err.status === 401) return start(); showAdmin([err.message, 'error']); }
+});
+
+async function start(){
+  try {
+    const me = await call('GET', '/api/admin/me');
+    me.admin ? showAdmin() : showLogin(me.enabled, me.needs_email);
+  } catch (e){ app.innerHTML = `<main class="wrap"><div class="msg error">Can't reach the server.</div></main>`; }
+}
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KarigarSetu prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FBF6EE; --paper:#FFFDF9; --tan:#C8874A; --tan-d:#9A5B26; --brown:#3B2416; --ink:#2A1C12;
+  --muted:#7A6555; --line:#EADFCF; --green:#2F7D4F; --green-bg:#E5F3EA; --amber:#9A6200; --amber-bg:#FCF0D6;
+  --blue:#2B5C9A; --blue-bg:#E4EEF9; --red:#A23A2C; --red-bg:#F9E4E0; --gray-bg:#F1ECE4;
+  --wa:#1F9D55;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;font-size:16px}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:700;color:var(--brown);margin:0 0 .5em;line-height:1.15}
+a{color:var(--tan-d)}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--brown);background:transparent;color:var(--brown);padding:10px 18px;border-radius:999px;font-weight:500;text-decoration:none;font-size:15px}
+.btn:hover{background:var(--gray-bg)}
+.btn.primary{background:var(--brown);color:var(--cream)}
+.btn.primary:hover{background:#563522}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.wa:hover{background:#178246}
+.btn.sm{padding:6px 12px;font-size:13px}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+
+/* header */
+header.site{position:sticky;top:0;z-index:5;background:rgba(251,246,238,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:700;font-size:21px;color:var(--brown);text-decoration:none}
+.logo span{color:var(--tan-d)}
+nav.main{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+nav.main a{padding:8px 12px;border-radius:999px;text-decoration:none;color:var(--brown);font-size:15px}
+nav.main a.active{background:var(--gray-bg)}
+nav.main a.login{border:1px solid var(--brown);margin-left:6px}
+
+/* home */
+.hero{padding:72px 0 56px}
+.hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
+.eyebrow{display:inline-block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--tan-d);font-weight:700;margin-bottom:14px}
+.hero h1{font-size:clamp(34px,5vw,54px)}
+.hero p.lead{font-size:19px;color:var(--muted);max-width:520px;margin:0 0 26px}
+.hero-art{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:28px;position:relative}
+.chat-mini{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.bub{font-size:14px;padding:8px 12px;border-radius:14px;max-width:85%}
+.bub.r{background:#DCF5E3;align-self:flex-end;color:#16462A}
+.bub.b{background:var(--gray-bg);color:var(--ink)}
+section.block{padding:56px 0}
+section.alt{background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:26px}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px}
+section.alt .step{background:var(--cream)}
+.step .n{width:34px;height:34px;border-radius:50%;background:var(--brown);color:var(--cream);display:grid;place-items:center;font-weight:700;margin-bottom:12px}
+.step h3{font-size:20px}
+.step p{margin:0;color:var(--muted)}
+.makers{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:26px}
+.maker{background:var(--paper);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column}
+.maker .ph{height:150px;display:grid;place-items:center}
+.maker .body{padding:20px 22px 22px;display:flex;flex-direction:column;gap:10px;flex:1}
+.maker h3{font-size:23px;margin:0}
+.meta{color:var(--muted);font-size:14px;display:flex;gap:14px;flex-wrap:wrap}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12.5px;background:var(--gray-bg);padding:4px 10px;border-radius:999px;color:var(--brown)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
+.fact{background:var(--cream);border-radius:12px;padding:8px 10px}
+.fact b{display:block;font-size:16px;color:var(--brown)}
+.fact small{color:var(--muted);font-size:12px}
+.designs{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:26px}
+.design{background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:18px;text-align:center}
+.design h3{font-size:19px;margin:8px 0 2px}
+.design p{margin:0;color:var(--muted);font-size:14px}
+footer.site{padding:36px 0;color:var(--muted);font-size:14px}
+footer.site .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* about / contact */
+.page{padding:56px 0}
+.prose{max-width:720px}
+.prose p{font-size:17px;color:#4A382B}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:24px}
+label{display:block;font-size:14px;font-weight:500;margin:0 0 6px;color:var(--brown)}
+input,select,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--tan);outline-offset:1px}
+.field{margin-bottom:14px}
+.note{font-size:13px;color:var(--muted)}
+.okmsg{background:var(--green-bg);color:var(--green);padding:10px 12px;border-radius:10px;font-size:14px;margin-top:10px}
+.err{color:var(--red);font-size:13px;margin-top:6px}
+
+.about-hero{padding:56px 0 40px}
+.about-hero h1{font-size:clamp(34px,5vw,56px);max-width:820px}
+.about-hero .lead{font-size:19px;color:var(--muted);max-width:680px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px}
+.stat b{display:block;font-family:'Fraunces',serif;font-size:30px;color:var(--tan-d)}
+.stat span{font-size:14px;color:var(--muted)}
+.gap{background:var(--cream);border:1px solid var(--line);border-radius:20px;padding:22px}
+.gap-row{margin-bottom:18px}
+.gap-row small{display:block;color:var(--muted);font-size:13px}
+.gap-row b{display:block;font-family:'Fraunces',serif;font-size:30px;color:var(--brown)}
+.bar{height:12px;border-radius:6px;background:var(--brown);margin-top:6px;min-width:6px}
+.bar.low{background:var(--tan)}
+.timeline{list-style:none;margin:24px 0 0;padding:0;border-left:2px solid var(--line)}
+.timeline li{display:grid;grid-template-columns:130px 1fr;gap:16px;padding:0 0 22px 22px;position:relative}
+.timeline li::before{content:'';position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--tan)}
+.timeline time{font-weight:700;color:var(--tan-d);font-size:15px}
+.timeline h3{font-size:19px;margin:0 0 2px}
+.timeline p{margin:0;color:var(--muted)}
+.probs{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px}
+.prob{background:var(--cream);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column}
+.pn{width:32px;height:32px;border-radius:50%;background:var(--brown);color:var(--cream);display:grid;place-items:center;font-weight:700}
+.prob h3{font-size:19px;margin:10px 0 6px}
+.prob p{margin:0 0 14px;color:#4A382B;font-size:15px;flex:1}
+.fix{font-size:14px;background:var(--green-bg);color:var(--green);border-radius:10px;padding:8px 10px}
+.sources{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+.sources li{margin-bottom:6px}
+.about-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+.ph-slot{aspect-ratio:4/3;border-radius:20px;border:2px dashed var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;color:var(--brown);font-weight:500}
+.ph-slot small{color:var(--muted);font-weight:400}
+.ph-img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:20px}
+.src{margin:8px 0 0;font-size:14px;color:var(--muted)}
+.src summary{cursor:pointer;padding:8px 0}
+/* login */
+.login-wrap{min-height:calc(100vh - 64px);display:grid;place-items:center;padding:40px 20px}
+.login-card{width:100%;max-width:400px}
+.login-card input{width:100%}
+.su-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ap-row{display:grid;grid-template-columns:2fr 1fr 1fr 1.4fr;gap:12px}
+.ap-row input{width:100%}
+@media (max-width:760px){.ap-row{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.su-row{grid-template-columns:1fr}}
+
+/* dashboard */
+.dash{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 64px)}
+.side{background:var(--brown);color:var(--cream);padding:22px 14px;display:flex;flex-direction:column;gap:4px}
+.side .who{padding:4px 10px 16px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:10px}
+.side .who b{display:block;font-family:'Fraunces',serif;font-size:18px}
+.side .who small{opacity:.7}
+.side button{background:transparent;border:0;color:var(--cream);text-align:left;padding:10px 12px;border-radius:10px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.side button:hover{background:rgba(255,255,255,.08)}
+.side button.active{background:rgba(255,255,255,.16);font-weight:500}
+.side .badge{background:var(--tan);color:#fff;font-size:12px;border-radius:999px;padding:1px 8px}
+.side .spacer{flex:1}
+.main{padding:28px;overflow:auto}
+.main h2{font-size:28px}
+.toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
+.kpi small{color:var(--muted);font-size:13px}
+.kpi b{display:block;font-size:28px;font-family:'Fraunces',serif;color:var(--brown)}
+table{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--muted);font-size:13px;background:#FBF7F0}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}
+tr.click td:first-child b{white-space:nowrap}
+tr.click:hover td{background:#FBF5EA}
+tr.sel td{background:#F6EBDB}
+td input{width:80px;padding:6px 8px}
+.pill{display:inline-block;font-size:12.5px;padding:3px 10px;border-radius:999px;font-weight:500;white-space:nowrap}
+.s-awaiting{background:var(--amber-bg);color:var(--amber)}
+.s-counter{background:var(--blue-bg);color:var(--blue)}
+.s-approved{background:var(--green-bg);color:var(--green)}
+.s-in_production{background:var(--blue-bg);color:var(--blue)}
+.s-ready{background:var(--green-bg);color:var(--green)}
+.s-delivered{background:var(--gray-bg);color:var(--muted)}
+.s-rejected{background:var(--red-bg);color:var(--red)}
+.split{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start}
+.detail h3{font-size:22px;margin-bottom:4px}
+.feas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.feas div{border-radius:12px;padding:10px 12px}
+.feas .a{background:var(--green-bg);color:var(--green)}
+.feas .b{background:var(--amber-bg);color:var(--amber)}
+.feas .c{background:var(--blue-bg);color:var(--blue)}
+.feas b{display:block;font-size:22px;font-family:'Fraunces',serif}
+.feas small{font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.wa-msg{background:#E9F7EE;border:1px solid #CBEBD6;border-radius:12px;padding:10px 12px;font-size:13.5px;white-space:pre-line;color:#16462A;margin-top:12px}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.log li time{color:var(--muted);min-width:110px;font-size:13px}
+.log .who{font-size:12px;border-radius:999px;padding:1px 8px;background:var(--gray-bg);margin-left:6px}
+.empty{padding:22px;text-align:center;color:var(--muted)}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--brown);color:var(--cream);padding:12px 16px;border-radius:12px;font-size:14px;max-width:340px;opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:20}
+.toast.show{opacity:1;transform:none}
+.demo-strip{background:var(--amber-bg);color:var(--amber);font-size:13px;text-align:center;padding:6px 12px}
+
+@media (max-width:860px){
+  .hero .wrap,.cols,.split{grid-template-columns:1fr}
+  .steps,.designs,.makers,.probs,.about-grid{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .timeline li{grid-template-columns:1fr;gap:2px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .dash{grid-template-columns:1fr}
+  .side{flex-direction:row;overflow-x:auto;padding:10px;gap:6px}
+  .side .who,.side .spacer{display:none}
+  .side button{white-space:nowrap}
+  nav.main a{padding:6px 8px;font-size:14px}
+}
+</style>
+</head>
+<body>
+<div class="demo-strip">Prototype for the hackathon demo. WhatsApp numbers and data are samples.</div>
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#home"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c6 0 9 5 9 12s-3 14-9 14-9-7-9-14 3-12 9-12z" fill="#C8874A"/><path d="M8 13h16M12 9c2 2 6 2 8 0" stroke="#3B2416" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Karigar<span>Setu</span></a>
+    <nav class="main" id="nav"></nav>
+  </div>
+</header>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const IMG = { "pair": "assets/images/chappal-pair.jpg", "tools": "assets/images/leather-tools.jpg", "stitch": "assets/images/artisan-stitching-sole.jpg", "stitch2": "assets/images/artisan-stitching-strap.jpg"};
+let TODAY = new Date('2026-11-16T09:00:00');
+const fmt = d => d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const rupee = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const MAKERS = [
+  {id:'shinde', name:'Shinde Footwear', place:'Kolhapur, Maharashtra', since:'Family craft since 1978', designs:['Kolhapuri Classic','Kapshi','Paytan'], lead:'7–12 days', moq:'20 pairs', cap:'18 pairs/day', wa:'919800000001', color:'#E9D2B4'},
+  {id:'patil', name:'Patil Chappal Udyog', place:'Kapshi, Kolhapur district', since:'12 artisans, hand-stitched', designs:['Kapshi','Bakkal','Kolhapuri Classic'], lead:'10–15 days', moq:'30 pairs', cap:'12 pairs/day', wa:'919800000002', color:'#D9C2A2'}
+];
+
+/* Add a maker's photo by setting img to a data: URI (remote images are blocked in the artifact) */
+const DESIGNS = [
+  {name:'Kapshi', desc:'Soft leather, pointed toe, decorated strap', c:'#EAD7BC', s:'#8A4A1C', img:''},
+  {name:'Paytan', desc:'Fine hand braiding, the classic look', c:'#D8B88E', s:'#4A2410', img:''},
+  {name:'Kachkadi', desc:'Braided leather all over the upper', c:'#E2C49C', s:'#5E2E0E', img:''},
+  {name:'Pukari', desc:'Plain and sturdy, for everyday wear', c:'#E9D2B4', s:'#7A3E14', img:''}
+];
+
+const S = {
+  loggedIn:false, view:'overview', selected:'KS-1042', counterOpen:false, lastMsg:null,
+  maker:'Shinde Footwear',
+  sizes:[6,7,8,9,10],
+  products:[
+    {id:'classic', name:'Kolhapuri Classic', price:550},
+    {id:'kapshi', name:'Kapshi', price:620},
+    {id:'paytan', name:'Paytan', price:480}
+  ],
+  stock:{ classic:{6:4,7:6,8:8,9:6,10:3}, kapshi:{6:2,7:5,8:6,9:4,10:1}, paytan:{6:6,7:8,8:9,9:7,10:4} },
+  capacity:{ classic:6, kapshi:4, paytan:8 }, buffer:3,
+  committed:{ classic:0, kapshi:24, paytan:0 },
+  orders:[
+    {id:'KS-1042', retailer:'Pune Footwear House', city:'Pune', lang:'Marathi', product:'classic', lines:{7:15,8:20,9:15}, status:'awaiting', created:'16 Nov, 01:42', price:550},
+    {id:'KS-1039', retailer:'Nashik Heritage Store', city:'Nashik', lang:'Hindi', product:'kapshi', lines:{7:10,8:16,9:14}, status:'in_production', created:'12 Nov, 11:05', price:620, due:'24 Nov', _make:24},
+    {id:'KS-1036', retailer:'Mumbai Craft Co.', city:'Mumbai', lang:'English', product:'paytan', lines:{8:12,9:12}, status:'delivered', created:'4 Nov, 16:20', price:480, due:'11 Nov'}
+  ],
+  audit:[
+    {t:'16 Nov, 01:44', who:'System', text:'Approval request sent to maker on WhatsApp for KS-1042'},
+    {t:'16 Nov, 01:43', who:'System', text:'Feasibility for KS-1042: 20 ready, 30 to make, earliest 24 Nov'},
+    {t:'16 Nov, 01:42', who:'AI agent', text:'Drafted KS-1042 from Marathi message: Classic, 50 pairs (7:15, 8:20, 9:15)'},
+    {t:'15 Nov, 18:10', who:'Maker', text:'KS-1039 marked in production'},
+    {t:'12 Nov, 11:20', who:'Maker', text:'Approved KS-1039 via WhatsApp'},
+    {t:'11 Nov, 09:30', who:'Maker', text:'KS-1036 marked delivered'}
+  ],
+  seq:1043, clock:45
+};
+
+const pname = id => S.products.find(p=>p.id===id).name;
+const qty = o => Object.values(o.lines).reduce((a,b)=>a+b,0);
+const nowStamp = () => { const m = S.clock++; return '16 Nov, ' + String(1+Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); };
+const log = (who,text) => S.audit.unshift({t:nowStamp(), who, text});
+
+function feasibility(o){
+  let ready=0, make=0; const rows=[];
+  for (const [size,q] of Object.entries(o.lines)){
+    const have = S.stock[o.product][size]||0;
+    const r = Math.min(have,q), m = q-r;
+    ready+=r; make+=m; rows.push({size,q,r,m,have});
+  }
+  const cap = S.capacity[o.product];
+  const days = make>0 ? Math.ceil((S.committed[o.product]+make)/cap) + S.buffer : 1;
+  return {ready, make, rows, days, date: fmt(addDays(TODAY,days))};
+}
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* ---------- shared bits ---------- */
+function chappal(color, strap){
+  return `<svg width="150" height="110" viewBox="0 0 150 110" aria-hidden="true">
+    <g transform="rotate(-18 75 55)">
+      <path d="M75 8c18 0 26 14 26 36s-8 58-26 58-26-36-26-58 8-36 26-36z" fill="${color}" stroke="#9A5B26" stroke-width="2"/>
+      <path d="M75 14c13 0 19 11 19 30s-6 50-19 50-19-31-19-50 6-30 19-30z" fill="none" stroke="#9A5B26" stroke-width="1" stroke-dasharray="3 3"/>
+      <path d="M48 44c14 8 40 8 54 0" stroke="${strap}" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <path d="M58 30c8 6 26 6 34 0" stroke="${strap}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="75" cy="22" r="5" fill="none" stroke="${strap}" stroke-width="3"/>
+    </g></svg>`;
+}
+function waLink(m){ return `https://wa.me/${m.wa}?text=${encodeURIComponent('Hi, I want to place a bulk order with ' + m.name + ' via KarigarSetu')}`; }
+
+function renderNav(route){
+  const items = [['home','Home'],['about','About'],['contact','Contact']];
+  let h = items.map(([k,l])=>`<a href="#${k}" class="${route===k?'active':''}">${l}</a>`).join('');
+  h += S.loggedIn ? `<a href="#dashboard" class="login ${route==='dashboard'?'active':''}">Dashboard</a>`
+                  : `<a href="#login" class="login ${route==='login'?'active':''}">Supplier login</a>`;
+  document.getElementById('nav').innerHTML = h;
+}
+const footer = () => `<footer class="site"><div class="wrap"><span>© 2026 KarigarSetu · From the maker's bench to your shop shelf</span><span>support@karigarsetu.in · WhatsApp +91 98000 00000</span></div></footer>`;
+
+/* ---------- public pages ---------- */
+function home(){
+  return `
+  <section class="hero"><div class="wrap">
+    <div>
+      <span class="eyebrow">B2B sourcing for retailers · Maker to shop</span>
+      <h1>From the maker's bench to your shop shelf.</h1>
+      <p class="lead">Order authentic Kolhapuri chappals in bulk, directly from the artisans who make them. Message a maker on WhatsApp in Marathi, Hindi or English; the maker confirms quantity, price and delivery date.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" data-scroll="makers">Find a maker</button>
+        <button class="btn" data-scroll="how">How it works</button>
+      </div>
+    </div>
+    <div class="hero-art">
+      <img src="${IMG.pair}" alt="Handmade Kolhapuri chappals with braided straps" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:16px;display:block">
+      <div class="chat-mini">
+        <div class="bub r">मला क्लासिक कोल्हापुरी 50 जोड्या हव्यात</div>
+        <div class="bub b">20 pairs ready, 30 to be made. Earliest delivery: 24 Nov. Checking with Shinde Footwear…</div>
+        <div class="bub b"><b>Confirmed by maker.</b> Order KS-1042</div>
+      </div>
+    </div>
+  </div></section>
+
+  <section class="block alt" id="how"><div class="wrap">
+    <span class="eyebrow">How it works</span>
+    <h2>Three steps, all on WhatsApp</h2>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Message the maker</h3><p>Tap "Order on WhatsApp" and say what you need: design, sizes, quantity and when.</p></div>
+      <div class="step"><div class="n">2</div><h3>Maker confirms</h3><p>We check ready stock and production capacity. The artisan approves the quantity, price and date.</p></div>
+      <div class="step"><div class="n">3</div><h3>Track your order</h3><p>Get your order ID and status updates on WhatsApp until delivery.</p></div>
+    </div>
+  </div></section>
+
+  <section class="block" id="makers"><div class="wrap">
+    <span class="eyebrow">Participating makers</span>
+    <h2>Order directly from a workshop</h2>
+    <div class="makers">
+      ${MAKERS.map(m=>`
+      <article class="maker">
+        <div class="ph" style="background:${m.color}">${chappal('#F4E3CB','#6B3510')}</div>
+        <div class="body">
+          <h3>${m.name}</h3>
+          <div class="meta"><span>${m.place}</span><span>${m.since}</span></div>
+          <div class="tags">${m.designs.map(d=>`<span class="tag">${d}</span>`).join('')}</div>
+          <div class="facts">
+            <div class="fact"><b>${m.lead}</b><small>Typical lead time</small></div>
+            <div class="fact"><b>${m.moq}</b><small>Minimum order</small></div>
+            <div class="fact"><b>${m.cap}</b><small>Capacity</small></div>
+          </div>
+          <a class="btn wa" href="${waLink(m)}" target="_blank" rel="noopener" style="align-self:flex-start">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5-.3.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>
+            Order on WhatsApp</a>
+        </div>
+      </article>`).join('')}
+    </div>
+  </div></section>
+
+  <section class="block alt"><div class="wrap">
+    <span class="eyebrow">Designs</span>
+    <h2>Traditional designs</h2>
+    <p class="note" style="margin-top:-6px">Each style is named after the village that first made it.</p>
+    <div class="designs">
+      ${DESIGNS.map(d=>`<div class="design">${d.img?`<img src="${d.img}" alt="${d.name} Kolhapuri chappal" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px">`:chappal(d.c,d.s)}<h3>${d.name}</h3><p>${d.desc}</p></div>`).join('')}
+    </div>
+  </div></section>
+  ${footer()}`;
+}
+
+/* Workshop photos: set to a data: URI once you have your own photos (with the maker's permission) */
+const PHOTOS = { hero:IMG.stitch, craft:IMG.stitch2 };
+function photo(key, label){
+  return PHOTOS[key]
+    ? `<img src="${PHOTOS[key]}" alt="${label}" class="ph-img">`
+    : `<div class="ph-slot">${chappal('#E2C49C','#5E2E0E')}<span>${label}<br><small>Photo coming soon</small></span></div>`;
+}
+function about(){
+  const P = [
+    ['Middlemen keep the margin','Artisans are reported to earn ₹100–150 a pair; city shops sell it for about 10x.','Retailers order directly from the maker.'],
+    ['Leather is scarce','Since 2015, many makers have had to buy leather from other states, at higher cost.','Delivery dates include the maker\'s buffer.'],
+    ['Cheap copies','Machine-made fakes undercut genuine makers.','Every order goes to a named workshop.'],
+    ['Output is falling','Production dropped about 20% between 2007 and 2019.','Steady bulk orders makers can plan around.']
+  ];
+  return `
+  <section class="about-hero"><div class="wrap about-grid">
+    <div>
+      <span class="eyebrow">About KarigarSetu</span>
+      <h1>An 800-year-old craft, still made by hand</h1>
+      <p class="lead">Vegetable-tanned leather, hand-stitched and braided, without a single nail. We connect the families who make Kolhapuris directly with the shops that sell them.</p>
+    </div>
+    ${photo('hero','Artisan at work')}
+  </div></section>
+
+  <section class="block alt"><div class="wrap about-grid" style="grid-template-columns:.8fr 1.2fr">
+    <img src="${IMG.tools}" alt="Traditional leather-working tools and cut soles" class="ph-img" style="aspect-ratio:1/1">
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);margin:0">
+      <div class="stat"><b>21 days</b><span>to tan the leather naturally</span></div>
+      <div class="stat"><b>0 nails</b><span>stitched with leather cord</span></div>
+      <div class="stat"><b>1–3 days</b><span>to make one pair</span></div>
+      <div class="stat"><b>8 districts</b><span>hold the GI tag</span></div>
+      <p class="note" style="grid-column:1/-1;margin:4px 0 0">Awls, punches and hand-cut soles: the same simple tools used for generations.</p>
+    </div>
+  </div></section>
+
+  <section class="block"><div class="wrap">
+    <span class="eyebrow">The Prada moment</span>
+    <h2>The world noticed. The makers didn't benefit.</h2>
+    <div class="cols" style="margin-top:16px;align-items:center">
+      <div class="prose">
+        <p>In 2025 Prada showed Kolhapuri-style sandals in Milan without credit. After the backlash, it partnered with state leather bodies and in 2026 launched 2,000 pairs made by Indian artisans.</p>
+        <p><b>The real gap is still there:</b> most makers sell through middlemen at local prices.</p>
+      </div>
+      <div class="gap">
+        <div class="gap-row"><small>Prada's pair</small><b>≈ ₹84,000</b><div class="bar" style="width:100%"></div></div>
+        <div class="gap-row" style="margin:0"><small>Artisan's reported earning per pair</small><b>₹100–150</b><div class="bar low" style="width:2%"></div></div>
+      </div>
+    </div>
+  </div></section>
+
+  <section class="block alt"><div class="wrap">
+    <span class="eyebrow">The real problems</span>
+    <h2>What makers face, and how we help</h2>
+    <div class="probs">${P.map(([h,p,f],n)=>`<div class="prob"><span class="pn">${n+1}</span><h3>${h}</h3><p>${p}</p><div class="fix">${f}</div></div>`).join('')}</div>
+  </div></section>
+
+  <section class="block"><div class="wrap about-grid">
+    <div class="prose">
+      <span class="eyebrow">Our promise</span>
+      <h2>The maker always decides</h2>
+      <p>Our AI reads orders and checks stock, but never promises a price, quantity or date. The artisan approves every order.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><a class="btn primary" href="#home">Meet the makers</a><a class="btn" href="#contact">Join as a maker</a></div>
+    </div>
+    ${photo('craft','Hand-stitching a braided strap')}
+  </div></section>
+
+  <div class="wrap"><details class="src"><summary>Sources</summary>
+    <ul class="sources">
+      <li><a href="https://en.wikipedia.org/wiki/Kolhapuri_chappal" target="_blank" rel="noopener">Wikipedia</a>: history and GI districts</li>
+      <li><a href="https://www.aiacaonline.org/craftkatha-pop-up/kolhapuri-chappal" target="_blank" rel="noopener">AIACA Craft Katha</a>: time to make a pair</li>
+      <li><a href="https://www.pradagroup.com/en/news-media/news-section/26-04-27-prada-kolhapuri.html" target="_blank" rel="noopener">Prada Group, April 2026</a> and <a href="https://www.outlookbusiness.com/corporate/prada-to-launch-rs85000-kolhapuri-chappals-made-by-indian-artisans" target="_blank" rel="noopener">Outlook Business</a>: launch, pairs and price</li>
+      <li><a href="https://texfash.com/column/evil-wears-prada-luxury-brand-s-cultural-theft-masks-a-looming-craft-crisis-in-india" target="_blank" rel="noopener">Texfash</a>: artisan earnings</li>
+      <li><a href="https://thewire.in/rights/kolhapuri-chappals-walk-the-prada-runway-yet-local-artisans-get-no-benefit-from-it" target="_blank" rel="noopener">The Wire</a>: leather shortage and copies</li>
+      <li><a href="https://imdr.edu/public/IMDR_JOURNAL_2023_24_Updated/files/basic-html/page126.html" target="_blank" rel="noopener">IMDR Journal</a>: production decline</li>
+      <li><a href="https://www.wbcsmadeeasy.in/?p=44707" target="_blank" rel="noopener">Summary of reporting by Vinaya Deshpande Pandit</a>: 21-day tanning</li>
+    </ul></details></div>
+  ${footer()}`;
+}
+
+function contact(){
+  return `<section class="page"><div class="wrap">
+    <span class="eyebrow">Contact</span>
+    <h1>Get in touch</h1>
+    <div class="cols" style="margin-top:20px">
+      <div class="card">
+        <h3>Reach us</h3>
+        <p>Email: support@karigarsetu.in</p>
+        <p>WhatsApp: +91 98000 00000</p>
+        <p class="note">Retailers: to place an order, use a maker's "Order on WhatsApp" button on the Home page.</p>
+      </div>
+      <div class="card">
+        <h3>Makers: join KarigarSetu</h3>
+        <p>Create a supplier account with your WhatsApp number, email and a password. Our team verifies every workshop, then you get orders from shops across India on WhatsApp.</p>
+        <a class="btn primary" href="#signup">Become a supplier</a>
+        <p class="note" style="margin-top:12px">Already registered? <a href="#login">Supplier login</a></p>
+      </div>
+    </div>
+  </div></section>${footer()}`;
+}
+
+function login(){
+  return `<div class="login-wrap"><form class="card login-card" id="loginForm" novalidate>
+    <h2>Supplier login</h2>
+    <p class="note" style="margin-top:-4px">For makers. Retailers order on WhatsApp and don't need an account.</p>
+    <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="email" placeholder="you@example.com"></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    <div id="loginErr" class="err"></div>
+    <button class="btn primary" type="submit" id="loginBtn" style="width:100%;justify-content:center;margin-top:6px">Log in</button>
+    <p class="note" style="margin:14px 0 0">New maker? <a href="#signup">Become a supplier</a><br>
+      Forgot your password? Email support@karigarsetu.in</p>
+  </form></div>`;
+}
+
+function signup(){
+  if (S.signedUp) return `<div class="login-wrap"><div class="card login-card" style="text-align:center">
+    <div style="font-size:40px" aria-hidden="true">✅</div>
+    <h2>Thank you!</h2>
+    <p>${S.signedUp}</p>
+    <a class="btn" href="#home">Back to home</a>
+  </div></div>`;
+  return `<div class="login-wrap"><form class="card login-card" id="signupForm" novalidate style="max-width:520px">
+    <h2>Become a supplier</h2>
+    <p class="note" style="margin-top:-4px">Get bulk orders from shops across India, right on WhatsApp. We verify every workshop before the account goes live.</p>
+    <div class="field"><label for="su-name">Your name</label><input id="su-name" autocomplete="name"></div>
+    <div class="field"><label for="su-biz">Business name</label><input id="su-biz" placeholder="e.g. Shinde Footwear"></div>
+    <div class="su-row">
+      <div class="field"><label for="su-craft">Craft</label><input id="su-craft" placeholder="e.g. Kolhapuri chappals"></div>
+      <div class="field"><label for="su-town">Town / city</label><input id="su-town" placeholder="e.g. Kolhapur"></div>
+    </div>
+    <div class="field"><label for="su-ph">WhatsApp number</label><input id="su-ph" type="tel" inputmode="tel" placeholder="98000 00000">
+      <div class="note">Orders from shops will come to this number on WhatsApp.</div></div>
+    <div class="field"><label for="su-em">Email</label><input id="su-em" type="email" autocomplete="email"></div>
+    <div class="su-row">
+      <div class="field"><label for="su-pw">Password</label><input id="su-pw" type="password" autocomplete="new-password"><div class="note">At least 8 characters.</div></div>
+      <div class="field"><label for="su-pw2">Confirm password</label><input id="su-pw2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div id="signupErr" class="err"></div>
+    <button class="btn primary" type="submit" id="signupBtn" style="width:100%;justify-content:center;margin-top:6px">Create account</button>
+    <p class="note" style="margin:14px 0 0">Already registered? <a href="#login">Log in</a></p>
+  </form></div>`;
+}
+
+/* ---------- dashboard ---------- */
+function dashboard(){
+  const awaiting = S.orders.filter(o=>o.status==='awaiting').length;
+  const tabs = [['overview','Overview'],['orders','Orders'],['stock','Stock'],['capacity','Production capacity'],['products','Products'],['audit','Audit log']];
+  return `<div class="dash">
+    <aside class="side">
+      <div class="who"><b>${S.maker}</b><small>${S.place || 'Kolhapur'} · Owner</small></div>
+      ${tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.view===k?'active':''}">${l}${k==='orders'&&awaiting?`<span class="badge">${awaiting}</span>`:''}</button>`).join('')}
+      <div class="spacer"></div>
+      <button data-act="logout">Log out</button>
+    </aside>
+    <section class="main">${({overview,orders,stock,capacity,products,audit})[S.view]()}</section>
+  </div>`;
+}
+
+function overview(){
+  const readyTotal = Object.values(S.stock).reduce((a,s)=>a+Object.values(s).reduce((x,y)=>x+y,0),0);
+  const inProd = Object.values(S.committed).reduce((a,b)=>a+b,0);
+  const awaiting = S.orders.filter(o=>o.status==='awaiting');
+  const upcoming = S.orders.filter(o=>['approved','in_production','ready'].includes(o.status));
+  return `<div class="toprow"><div><h2>Good morning</h2><div class="note">Here's what needs your attention today.</div></div>
+    <button class="btn primary" data-act="simulate">Simulate new WhatsApp order</button></div>
+  <div class="kpis">
+    <div class="kpi"><small>Pairs ready</small><b>${readyTotal}</b></div>
+    <div class="kpi"><small>Pairs in production</small><b>${inProd}</b></div>
+    <div class="kpi"><small>Waiting for your approval</small><b>${awaiting.length}</b></div>
+    <div class="kpi"><small>Upcoming deliveries</small><b>${upcoming.length}</b></div>
+  </div>
+  <h3>Needs your approval</h3>
+  ${awaiting.length ? orderTable(awaiting) : `<div class="card empty">Nothing waiting. New WhatsApp orders will appear here.</div>`}
+  <h3 style="margin-top:24px">Recent activity</h3>
+  <div class="card" style="padding:6px 18px">${logList(S.audit.slice(0,5))}</div>`;
+}
+
+function statusLabel(s){ return ({awaiting:'Awaiting you',counter:'Counter-offer sent',approved:'Approved',in_production:'In production',ready:'Ready to ship',delivered:'Delivered',rejected:'Rejected'})[s]; }
+function orderTable(list){
+  return `<table><thead><tr><th>Order</th><th>Retailer</th><th>Design</th><th>Pairs</th><th>Status</th></tr></thead><tbody>
+  ${list.map(o=>`<tr class="click ${S.view==='orders'&&S.selected===o.id?'sel':''}" data-open="${o.id}"><td><b>${o.id}</b><div class="note">${o.created}</div></td><td>${esc(o.retailer)}<div class="note">${o.city} · ${o.lang}</div></td><td>${pname(o.product)}</td><td>${qty(o)}</td><td><span class="pill s-${o.status}">${statusLabel(o.status)}</span></td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+function orders(){
+  const o = S.orders.find(x=>x.id===S.selected) || S.orders[0];
+  return `<div class="toprow"><h2>Orders</h2><button class="btn" data-act="simulate">Simulate new WhatsApp order</button></div>
+  <div class="split">
+    <div>${orderTable(S.orders)}</div>
+    <div class="card detail">${o?orderDetail(o):''}</div>
+  </div>`;
+}
+
+function orderDetail(o){
+  const f = feasibility(o);
+  const total = qty(o)*o.price;
+  let actions = '';
+  if (o.status==='awaiting'){
+    actions = `<div class="actions"><button class="btn ok" data-act="approve">Approve</button><button class="btn" data-act="counter">Propose change</button><button class="btn danger" data-act="reject">Reject</button></div>
+    ${S.counterOpen?`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <div class="cols" style="gap:12px"><div class="field"><label for="cd">New delivery date</label><input id="cd" type="date" value="${addDays(TODAY,f.days+3).toISOString().slice(0,10)}"></div>
+      <div class="field"><label for="cp">Price per pair (₹)</label><input id="cp" type="number" step="1" value="${o.price}"></div></div>
+      <button class="btn primary sm" data-act="sendCounter">Send to retailer</button></div>`:''}`;
+  } else if (o.status==='counter'){
+    actions = `<div class="actions"><button class="btn ok" data-act="retailerAccept">Simulate retailer accepts</button><button class="btn danger" data-act="retailerDecline">Simulate retailer declines</button></div>`;
+  } else if (o.status==='approved'){
+    actions = `<div class="actions"><button class="btn primary" data-act="advance" data-to="in_production">Mark in production</button></div>`;
+  } else if (o.status==='in_production'){
+    actions = `<div class="actions"><button class="btn primary" data-act="advance" data-to="ready">Mark ready to ship</button></div>`;
+  } else if (o.status==='ready'){
+    actions = `<div class="actions"><button class="btn primary" data-act="advance" data-to="delivered">Mark delivered</button></div>`;
+  }
+  const showFeas = ['awaiting','counter'].includes(o.status);
+  return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h3>${o.id}</h3><div class="note">${esc(o.retailer)} · ${o.city} · ordered in ${o.lang}</div></div><span class="pill s-${o.status}">${statusLabel(o.status)}</span></div>
+  <p style="margin:12px 0 4px"><b>${pname(o.product)}</b>, ${qty(o)} pairs · ${rupee(o.price)}/pair · <b>${rupee(total)}</b></p>
+  ${showFeas?`<div class="feas"><div class="a"><b>${f.ready}</b><small>Ready now</small></div><div class="b"><b>${f.make}</b><small>To make</small></div><div class="c"><b>${o.due||f.date}</b><small>${o.due?'Agreed date':'Earliest delivery'}</small></div></div>
+  <table style="font-size:13.5px"><thead><tr><th>Size</th><th>Ordered</th><th>In stock</th><th>Ready</th><th>To make</th></tr></thead><tbody>
+  ${f.rows.map(r=>`<tr><td>${r.size}</td><td>${r.q}</td><td>${r.have}</td><td>${r.r}</td><td>${r.m}</td></tr>`).join('')}</tbody></table>
+  <p class="note" style="margin-top:8px">Calculated from your stock and capacity: ${S.capacity[o.product]} pairs/day, ${S.committed[o.product]} already committed, ${S.buffer} buffer days.</p>`
+  :`<p class="note">${o.due?'Delivery date: '+o.due:''}</p>`}
+  ${actions}
+  ${S.lastMsg && S.lastMsg.id===o.id?`<div class="wa-msg"><b>WhatsApp sent to retailer</b>\n${esc(S.lastMsg.text)}</div>`:''}`;
+}
+
+function stock(){
+  return `<div class="toprow"><div><h2>Stock</h2><div class="note">Pairs ready to ship, by design and size. Edit a number to update it.</div></div></div>
+  <table><thead><tr><th>Design</th>${S.sizes.map(s=>`<th>Size ${s}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+  ${S.products.map(p=>`<tr><td><b>${p.name}</b></td>${S.sizes.map(s=>p.sizes && !p.sizes.includes(s) ? `<td class="note">–</td>` : `<td><input type="number" min="0" step="1" value="${S.stock[p.id][s]||0}" data-stock="${p.id}:${s}" aria-label="${p.name} size ${s}"></td>`).join('')}<td><b>${Object.values(S.stock[p.id]).reduce((a,b)=>a+b,0)}</b></td></tr>`).join('')}
+  </tbody></table>
+  <p class="note" style="margin-top:10px">Staff can also update stock on WhatsApp, for example: "add 10 size 8 Classic".</p>`;
+}
+
+function capacity(){
+  return `<div class="toprow"><div><h2>Production capacity</h2><div class="note">The AI uses these numbers to work out delivery dates. It never changes them.</div></div></div>
+  <table><thead><tr><th>Design</th><th>Pairs per day</th><th>Already committed</th><th>Days of work booked</th></tr></thead><tbody>
+  ${S.products.map(p=>`<tr><td><b>${p.name}</b></td><td><input type="number" min="1" step="1" value="${S.capacity[p.id]}" data-cap="${p.id}" aria-label="${p.name} pairs per day"></td><td>${S.committed[p.id]}</td><td>${Math.ceil(S.committed[p.id]/S.capacity[p.id])}</td></tr>`).join('')}
+  </tbody></table>
+  <div class="card" style="margin-top:16px;max-width:360px"><label for="buf">Buffer days added to every order</label><input id="buf" type="number" min="0" step="1" value="${S.buffer}" data-buffer="1"><p class="note">Covers leather supply, drying time and festival days.</p></div>`;
+}
+
+function products(){
+  const list = S.products.length
+    ? `<table><thead><tr><th>Design</th><th>Price per pair (₹)</th><th>Sizes</th></tr></thead><tbody>
+      ${S.products.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td><input type="number" min="1" step="1" value="${p.price}" data-price="${p.id}" aria-label="${esc(p.name)} price"></td><td>${(p.sizes||S.sizes).join(', ')}</td></tr>`).join('')}
+      </tbody></table>`
+    : `<div class="card" style="text-align:center;color:var(--muted)">No designs yet. Add your first design below so shops can order from you on WhatsApp.</div>`;
+  return `<div class="toprow"><div><h2>Products</h2><div class="note">The AI only offers designs and prices listed here.</div></div></div>
+  ${list}
+  <form class="card" id="addProductForm" novalidate style="margin-top:18px">
+    <h3 style="margin-bottom:12px">Add a design</h3>
+    <div class="ap-row">
+      <div class="field"><label for="ap-name">Design name</label><input id="ap-name" placeholder="e.g. Kolhapuri Classic"></div>
+      <div class="field"><label for="ap-price">Price per pair (₹)</label><input id="ap-price" type="number" min="1" step="1" placeholder="550"></div>
+      <div class="field"><label for="ap-cap">Pairs per day</label><input id="ap-cap" type="number" min="1" step="1" value="5"></div>
+      <div class="field"><label for="ap-sizes">Sizes</label><input id="ap-sizes" value="6,7,8,9,10"></div>
+    </div>
+    <div id="apErr" class="err"></div>
+    <button class="btn primary" type="submit" id="apBtn">Add design</button>
+    <span class="note" style="margin-left:8px">Stock starts at 0. Set ready pairs on the Stock tab.</span>
+  </form>`;
+}
+
+function logList(items){ return `<ul class="log">${items.map(a=>`<li><time>${a.t}</time><span>${esc(a.text)}<span class="who">${a.who}</span></span></li>`).join('')}</ul>`; }
+function audit(){ return `<div class="toprow"><div><h2>Audit log</h2><div class="note">Every AI action, approval and status change, newest first.</div></div></div><div class="card" style="padding:6px 18px">${logList(S.audit)}</div>`; }
+
+/* ---------- actions ---------- */
+const RETAILERS = [['Kolhapur Footwear Mart','Kolhapur','Marathi'],['Mumbai Craft Co.','Mumbai','English'],['Indore Juti Ghar','Indore','Hindi'],['Satara Chappal Bazaar','Satara','Marathi']];
+function simulate(){
+  const [r,c,l] = RETAILERS[S.seq % RETAILERS.length];
+  const p = S.products[S.seq % 3];
+  const lines = {7: 6+(S.seq%5)*2, 8: 10+(S.seq%3)*4, 9: 6+(S.seq%4)*2};
+  const o = {id:'KS-'+(S.seq++), retailer:r, city:c, lang:l, product:p.id, lines, status:'awaiting', created:nowStamp(), price:p.price};
+  S.orders.unshift(o);
+  const f = feasibility(o);
+  log('AI agent', `Drafted ${o.id} from ${l} message: ${p.name}, ${qty(o)} pairs`);
+  log('System', `Feasibility for ${o.id}: ${f.ready} ready, ${f.make} to make, earliest ${f.date}`);
+  log('System', `Approval request sent to maker on WhatsApp for ${o.id}`);
+  S.selected = o.id; S.view='orders'; S.counterOpen=false;
+  toast(`New order ${o.id} from ${r}`);
+}
+function approve(o, viaRetailer){
+  const f = feasibility(o);
+  for (const r of f.rows){ S.stock[o.product][r.size] -= r.r; }
+  S.committed[o.product] += f.make; o._make = f.make;
+  if (!o.due) o.due = f.date;
+  o.status = 'approved';
+  if (!viaRetailer) log('Maker', `Approved ${o.id}: ${qty(o)} pairs, ${rupee(o.price)}/pair, delivery ${o.due}`);
+  log('System', `Reserved ${f.ready} ready pairs and booked ${f.make} for production`);
+  log('System', `Confirmation sent to ${o.retailer} on WhatsApp`);
+  S.lastMsg = {id:o.id, text:`Your order ${o.id} is confirmed by ${S.maker}.\n${pname(o.product)}, ${qty(o)} pairs, ${rupee(qty(o)*o.price)}.\nDelivery by ${o.due}. We'll update you here.`};
+}
+
+document.addEventListener('click', e=>{
+  const sc = e.target.closest('[data-scroll]');
+  if (sc){ document.getElementById(sc.dataset.scroll).scrollIntoView({behavior:'smooth'}); return; }
+  const tab = e.target.closest('[data-tab]');
+  if (tab){ S.view = tab.dataset.tab; S.counterOpen=false; render(); if (LIVE) refresh().then(render).catch(err=>toast(err.message)); return; }
+  const row = e.target.closest('[data-open]');
+  if (row){ S.selected=row.dataset.open; S.view='orders'; S.counterOpen=false; if (LIVE) S.lastMsg=null; render(); if (LIVE) loadDetail(S.selected).then(render).catch(err=>toast(err.message)); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const o = S.orders.find(x=>x.id===S.selected);
+  if (LIVE){ liveAction(a, o); return; }
+  switch (a.dataset.act){
+    case 'logout': S.loggedIn=false; location.hash='login'; return;
+    case 'simulate': simulate(); break;
+    case 'approve': approve(o); S.counterOpen=false; toast(`${o.id} approved. Retailer notified.`); break;
+    case 'reject': o.status='rejected'; log('Maker',`Rejected ${o.id}`); log('System',`Polite decline sent to ${o.retailer} on WhatsApp`);
+      S.lastMsg={id:o.id,text:`Sorry, ${S.maker} can't take order ${o.id} right now. You can try another maker on KarigarSetu.`}; toast(`${o.id} rejected`); break;
+    case 'counter': S.counterOpen=!S.counterOpen; break;
+    case 'sendCounter': {
+      const d = document.getElementById('cd').value, p = Math.round(+document.getElementById('cp').value);
+      if (!d || !p || p<1){ toast('Enter a date and a price first'); return; }
+      o.due = fmt(new Date(d+'T09:00:00')); o.price = p; o.status='counter';
+      log('Maker',`Proposed change for ${o.id}: ${rupee(p)}/pair, delivery ${o.due}`);
+      log('System',`Counter-offer sent to ${o.retailer} on WhatsApp`);
+      S.lastMsg={id:o.id,text:`${S.maker} can do order ${o.id} at ${rupee(p)}/pair with delivery by ${o.due}.\nReply YES to confirm or NO to cancel.`};
+      S.counterOpen=false; toast('Counter-offer sent'); break; }
+    case 'retailerAccept': log('Retailer',`Accepted counter-offer for ${o.id}`); approve(o,true); toast(`${o.id} confirmed`); break;
+    case 'retailerDecline': o.status='rejected'; log('Retailer',`Declined counter-offer for ${o.id}`); S.lastMsg=null; break;
+    case 'advance': {
+      const to = a.dataset.to; o.status = to;
+      if (to==='ready'){ const f=qtyMake(o); S.committed[o.product]=Math.max(0,S.committed[o.product]-f); }
+      log('Maker',`${o.id} marked ${statusLabel(to).toLowerCase()}`);
+      log('System',`Status update sent to ${o.retailer} on WhatsApp`);
+      S.lastMsg={id:o.id,text:`Update on ${o.id}: ${statusLabel(to)}.`}; break; }
+  }
+  render();
+});
+function qtyMake(o){ return o._make ?? 0; }
+
+document.addEventListener('change', e=>{
+  const t = e.target; const v = Math.max(0, Math.round(+t.value||0));
+  if (LIVE){ liveChange(t); return; }
+  if (t.dataset.stock){ const [p,s]=t.dataset.stock.split(':'); S.stock[p][s]=v; log('Maker',`Stock updated: ${pname(p)} size ${s} = ${v}`); render(); }
+  else if (t.dataset.cap){ S.capacity[t.dataset.cap]=Math.max(1,v); log('Maker',`Capacity updated: ${pname(t.dataset.cap)} = ${Math.max(1,v)} pairs/day`); render(); }
+  else if (t.dataset.buffer){ S.buffer=v; log('Maker',`Buffer days set to ${v}`); render(); }
+  else if (t.dataset.price){ const p=S.products.find(x=>x.id===t.dataset.price); p.price=Math.max(1,v); log('Maker',`Price updated: ${p.name} = ${rupee(p.price)}`); render(); }
+});
+
+document.addEventListener('submit', e=>{
+  e.preventDefault();
+  if (e.target.id==='addProductForm'){
+    const v = id => document.getElementById(id).value;
+    const body = {name:v('ap-name').trim(), price_per_pair:Math.round(+v('ap-price')), pairs_per_day:Math.round(+v('ap-cap')) || 5, sizes:v('ap-sizes')};
+    const err = document.getElementById('apErr');
+    if (body.name.length < 2){ err.textContent = 'Enter the design name.'; return; }
+    if (!(body.price_per_pair > 0)){ err.textContent = 'Enter the price per pair.'; return; }
+    if (LIVE){ liveAddProduct(body, err); return; }
+    const id = body.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'design';
+    if (S.products.some(p => p.id === id)){ err.textContent = 'You already have this design.'; return; }
+    S.products.push({id, name:body.name, price:body.price_per_pair}); S.capacity[id] = body.pairs_per_day; S.committed[id] = 0;
+    S.stock[id] = Object.fromEntries(S.sizes.map(z => [z, 0])); log('Maker', `Added design ${body.name}`); toast(`${body.name} added`); render();
+  }
+  if (e.target.id==='signupForm'){
+    const v = id => document.getElementById(id).value;
+    const body = {name:v('su-name'), business_name:v('su-biz'), craft:v('su-craft'), town:v('su-town'),
+                  phone:v('su-ph'), email:v('su-em'), password:v('su-pw'), confirm_password:v('su-pw2')};
+    const err = document.getElementById('signupErr');
+    if (body.password !== body.confirm_password){ err.textContent = 'Passwords do not match.'; return; }
+    if (LIVE){ liveSignup(body, err); return; }
+    if (!body.name.trim() || !body.business_name.trim() || !body.email.includes('@')){ err.textContent = 'Please fill in every field.'; return; }
+    if (body.password.length < 8){ err.textContent = 'Password must be at least 8 characters.'; return; }
+    S.signedUp = "Your account is under review. We'll message you on WhatsApp once it's approved. (Prototype: not sent.)"; render();
+  }
+  if (e.target.id==='loginForm'){
+    const err=document.getElementById('loginErr');
+    const em=document.getElementById('em').value.trim().toLowerCase(), pw=document.getElementById('pw').value;
+    if (!em || !pw){ err.textContent='Enter your email and password.'; return; }
+    if (LIVE){ liveLogin(em, pw, err); return; }
+    if (em!=='demo@karigarsetu.in' || pw!=='Demo@12345'){ err.textContent='Invalid email or password. Prototype login: demo@karigarsetu.in / Demo@12345'; return; }
+    S.loggedIn=true; S.view='overview'; location.hash='dashboard'; render();
+  }
+});
+document.addEventListener('input', e=>{
+  if (e.target.closest('#addProductForm')) document.getElementById('apErr').textContent='';
+  if (e.target.closest('#loginForm')) document.getElementById('loginErr').textContent='';
+  if (e.target.closest('#signupForm')) document.getElementById('signupErr').textContent='';
+});
+
+/* ---------- live mode: when this page is served by the KarigarSetu server, use the real API ---------- */
+let LIVE = false, TOKEN = null;
+const STATUS_IN = {awaiting_maker:'awaiting', counter_offered:'counter'};
+const ACTION_TEXT = {
+  'order.drafted':'AI drafted the order', 'order.feasibility':'Feasibility checked', 'maker.notified':'Approval request sent to maker',
+  'order.approved':'Approved', 'stock.reserved':'Stock reserved', 'retailer.notified':'Retailer notified on WhatsApp',
+  'order.rejected':'Rejected', 'order.counter':'Change proposed', 'counter.accepted':'Retailer accepted the change',
+  'counter.declined':'Retailer declined the change', 'order.in_production':'Marked in production', 'order.ready':'Marked ready to ship',
+  'order.delivered':'Marked delivered', 'stock.updated':'Stock updated', 'product.updated':'Product updated', 'product.added':'Design added',
+  'account.signup':'Supplier signed up', 'account.approved':'Supplier account approved', 'account.rejected':'Supplier account rejected',
+  'settings.updated':'Settings updated', 'login':'Logged in', 'whatsapp.in':'WhatsApp message received',
+  'agent.action':'Ops agent acting on maker\'s message', 'agent.failed':'Ops agent action refused'
+};
+const fmtTs = iso => {
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}) + ', ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+};
+const fmtDay = s => s ? fmt(new Date(s + 'T09:00:00')) : null;
+// The login is remembered on this device until you log out (or it expires on the server), in every tab.
+const saveToken = t => { try { t ? localStorage.setItem('ks_token', t) : localStorage.removeItem('ks_token'); sessionStorage.removeItem('ks_token'); } catch (e) {} };
+const loadToken = () => { try { return localStorage.getItem('ks_token') || sessionStorage.getItem('ks_token'); } catch (e) { return null; } };
+function endSession(goTo){
+  TOKEN = null; saveToken(null); S.loggedIn = false; S.selected = null;
+  location.hash = goTo || 'login'; render();
+}
+// Logged out (or in) in another tab: follow it here.
+window.addEventListener('storage', e => {
+  if (!LIVE || e.key !== 'ks_token') return;
+  if (!e.newValue && TOKEN) endSession('login');
+  else if (e.newValue && e.newValue !== TOKEN){ TOKEN = e.newValue; refresh().then(() => { S.loggedIn = true; render(); }).catch(() => endSession('login')); }
+});
+
+async function api(method, path, body){
+  const r = await fetch(path, {method, headers:{'Content-Type':'application/json', ...(TOKEN ? {Authorization:'Bearer ' + TOKEN} : {})},
+                               body: body ? JSON.stringify(body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && TOKEN){ endSession('login'); throw new Error('Your session ended. Please log in again.'); }
+  if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Something went wrong. Try again.');
+  return data;
+}
+
+async function refresh(){
+  const [me, products, stock, list, rows] = await Promise.all([
+    api('GET','/api/me'), api('GET','/api/products'), api('GET','/api/stock'), api('GET','/api/orders'), api('GET','/api/audit?limit=150')]);
+  S.maker = me.name; S.place = (me.place || '').split(',')[0]; S.buffer = me.buffer_days;
+  S.products = products.map(p => ({id:p.code, name:p.name, price:p.price_per_pair, sizes:p.sizes.split(',').map(Number)}));
+  if (products.length) S.sizes = [...new Set(products.flatMap(p => p.sizes.split(',').map(Number)))].sort((a, b) => a - b);
+  S.capacity = {}; S.committed = {};
+  products.forEach(p => { S.capacity[p.code] = p.pairs_per_day; S.committed[p.code] = p.committed; });
+  S.stock = {}; stock.forEach(r => { S.stock[r.product_code] = {...r.sizes}; });
+  S.orders = list.map(o => ({id:o.code, retailer:o.retailer_name, retailerPhone:o.retailer_phone, city:o.city || '-',
+    lang:o.language || 'WhatsApp', product:o.product_code, lines:Object.fromEntries(o.lines.map(l => [l.size, l.qty])),
+    status:STATUS_IN[o.status] || o.status, created:fmtTs(o.created_at), price:o.price_per_pair, due:fmtDay(o.due_date), _make:o.to_make}));
+  S.audit = rows.map(a => ({t:fmtTs(a.ts), who:a.actor,
+    text:(a.order_code ? a.order_code + ': ' : '') + (ACTION_TEXT[a.action] || a.action) + (a.detail ? ' · ' + a.detail : '')}));
+  if (!S.orders.find(o => o.id === S.selected)) S.selected = S.orders[0] ? S.orders[0].id : null;
+  if (S.selected) await loadDetail(S.selected);
+}
+
+async function loadDetail(code){
+  const d = await api('GET', '/api/orders/' + encodeURIComponent(code));
+  const out = (d.messages || []).filter(m => m.direction === 'out' && m.phone === d.retailer_phone);
+  S.lastMsg = out.length ? {id:d.code, text:out[out.length - 1].body} : null;
+}
+
+async function liveLogin(email, password, err){
+  const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.textContent = 'Logging in…';
+  try {
+    const r = await api('POST', '/auth/login', {email, password});
+    TOKEN = r.token; saveToken(TOKEN);
+    await refresh();
+    S.loggedIn = true; S.view = 'overview'; location.hash = 'dashboard'; render();
+  } catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Log in'; }
+}
+
+async function liveAddProduct(body, err){
+  const btn = document.getElementById('apBtn'); btn.disabled = true;
+  try { await api('POST', '/api/products', body); await refresh(); toast(`${body.name} added`); render(); }
+  catch (e){ err.textContent = e.message; btn.disabled = false; }
+}
+
+async function liveSignup(body, err){
+  const btn = document.getElementById('signupBtn'); btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const r = await api('POST', '/auth/signup', body);
+    S.signedUp = r.message; render(); window.scrollTo(0, 0);
+  } catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Create account'; }
+}
+
+async function liveAction(a, o){
+  const act = a.dataset.act;
+  if (act === 'counter'){ S.counterOpen = !S.counterOpen; render(); return; }
+  if (act === 'logout'){ const t = TOKEN; endSession('login');   // end it on the server too
+    if (t) fetch('/auth/logout', {method:'POST', headers:{Authorization:'Bearer ' + t}}).catch(() => {}); return; }
+  a.disabled = true;
+  try {
+    let msg = '';
+    if (act === 'simulate'){
+      const r = await api('POST', '/api/demo/simulate-order');
+      S.selected = r.code; S.view = 'orders'; msg = `New order ${r.code} from ${r.retailer_name}`;
+    } else if (act === 'approve'){
+      await api('POST', `/api/orders/${o.id}/approve`); msg = `${o.id} approved. Retailer notified.`;
+    } else if (act === 'reject'){
+      await api('POST', `/api/orders/${o.id}/reject`, {reason:''}); msg = `${o.id} rejected`;
+    } else if (act === 'sendCounter'){
+      const d = document.getElementById('cd').value, p = Math.round(+document.getElementById('cp').value);
+      if (!d || !p || p < 1){ toast('Enter a date and a price first'); a.disabled = false; return; }
+      await api('POST', `/api/orders/${o.id}/counter`, {due_date:d, price_per_pair:p}); msg = 'Counter-offer sent to the retailer';
+    } else if (act === 'retailerAccept' || act === 'retailerDecline'){
+      await api('POST', `/api/demo/orders/${o.id}/retailer-reply`, {accept:act === 'retailerAccept'});
+      msg = act === 'retailerAccept' ? `${o.id} confirmed` : `${o.id} cancelled`;
+    } else if (act === 'advance'){
+      await api('POST', `/api/orders/${o.id}/advance`, {to:a.dataset.to}); msg = `${o.id}: ${statusLabel(a.dataset.to)}`;
+    }
+    S.counterOpen = false;
+    await refresh();
+    if (msg) toast(msg);
+  } catch (e){ toast(e.message); }
+  render();
+}
+
+async function liveChange(t){
+  const v = Math.max(0, Math.round(+t.value || 0));
+  try {
+    if (t.dataset.stock){ const [p, s] = t.dataset.stock.split(':'); await api('PUT', '/api/stock', {product_code:p, size:+s, ready:v}); }
+    else if (t.dataset.cap) await api('PATCH', '/api/products/' + t.dataset.cap, {pairs_per_day:Math.max(1, v)});
+    else if (t.dataset.buffer) await api('PATCH', '/api/me', {buffer_days:v});
+    else if (t.dataset.price) await api('PATCH', '/api/products/' + t.dataset.price, {price_per_pair:Math.max(1, v)});
+    else return;
+    await refresh(); toast('Saved');
+  } catch (e){ toast(e.message); }
+  render();
+}
+
+async function boot(){
+  try {
+    const r = await fetch('/health', {cache:'no-store'});
+    const h = r.ok ? await r.json() : null;
+    if (h && h.ok){
+      LIVE = true;
+      if (h.today) TODAY = new Date(h.today + 'T09:00:00');
+      document.querySelector('.demo-strip').textContent = 'Connected to the KarigarSetu server.';
+    }
+  } catch (e) {}
+  if (LIVE){
+    TOKEN = loadToken();
+    if (TOKEN){ try { await refresh(); saveToken(TOKEN); S.loggedIn = true; } catch (e) { TOKEN = null; saveToken(null); } }
+  }
+  render();
+}
+
+/* ---------- router ---------- */
+function render(){
+  let route = location.hash.replace('#','') || 'home';
+  if (!['home','about','contact','login','signup','dashboard'].includes(route)) route='home';
+  if (route==='dashboard' && !S.loggedIn) route='login';
+  if ((route==='login' || route==='signup') && S.loggedIn) route='dashboard';
+  if (route!=='signup') S.signedUp = null;
+  // Show the page we actually opened in the address bar (e.g. #login when the dashboard needs a login).
+  if (location.hash.replace('#','') !== route) history.replaceState(null, '', '#' + route);
+  renderNav(route);
+  const app=document.getElementById('app');
+  const prevScroll = route==='dashboard' ? window.scrollY : 0;
+  app.innerHTML = ({home,about,contact,login,signup,dashboard})[route]();
+  if (route==='dashboard') window.scrollTo(0,prevScroll);
+}
+window.addEventListener('hashchange', ()=>{ render(); window.scrollTo(0,0); });
+render();
+boot();
+</script>
+</body>
+</html>
