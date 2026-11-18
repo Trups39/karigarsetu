@@ -32,6 +32,7 @@ Makers' quick replies `1`, `2` and `3` skip the AI entirely, so approvals work e
 ```
 karigarsetu/
 ├── README.md
+├── CHANGES.md                    what changed in the latest version
 ├── .gitignore
 ├── frontend/                     website + maker dashboard
 │   ├── index.html                Home, About, Contact, Supplier sign-up + login, Dashboard
@@ -39,10 +40,11 @@ karigarsetu/
 │   └── assets/images/            photos used on Home and About
 └── backend/                      FastAPI server (also serves the frontend)
     ├── requirements.txt
-    ├── .env.example              settings: Claude key, Twilio, demo options
+    ├── .env.example              settings: database, Claude key, Meta WhatsApp, admin login, demo options
     ├── db/
-    │   ├── seed.sql              mock makers, products, stock, retailers (SQLite + PostgreSQL)
-    │   ├── demo_orders.sql       past orders and audit history for demos
+    │   ├── retailers.sql         sample shops (SQLite + PostgreSQL)
+    │   ├── seed.sql              sample suppliers: makers, designs, stock, supplier accounts
+    │   ├── demo_orders.sql       past orders and audit history for the sample suppliers
     │   ├── schema.sqlite.sql     CREATE TABLE statements (reference; generated)
     │   └── schema.postgres.sql   same for PostgreSQL
     ├── app/
@@ -62,12 +64,15 @@ karigarsetu/
     │       ├── feasibility.py    ready vs to-make, delivery date
     │       ├── orders.py         order statuses, audit entries, messages
     │       ├── inventory.py      stock, capacity, price, buffer days
-    │       ├── notify.py         outgoing WhatsApp (Twilio, or stored only)
+    │       ├── notify.py         outgoing WhatsApp (Meta Cloud API, or stored only)
     │       └── audit.py
-    └── tests/
-        ├── conftest.py           test settings
-        ├── test_flow.py          end-to-end tests
-        └── test_accounts.py      sign-up, login, sessions, admin approval
+    ├── tests/                    unit tests (python -m pytest -q)
+    │   ├── conftest.py           test settings
+    │   ├── test_flow.py          end-to-end tests
+    │   └── test_accounts.py      sign-up, login, sessions, admin approval
+    └── agent_eval/               agent tests with the real Claude (python -m agent_eval.run)
+        ├── cases.json            scenarios: Sales Agent, Operations Agent, fallbacks
+        └── run.py                runs them on a temporary database and writes a report
 ```
 
 ## Run it
@@ -92,10 +97,11 @@ python -m uvicorn app.main:app --reload
 For a repeatable demo date, put `DEMO_TODAY=2026-11-16` in `backend/.env`.
 
 - **Website and dashboard:** http://localhost:8000/
-  Sample suppliers (Shinde Footwear, Patil Chappal Udyog) and sample shops are loaded with the tables. **Your own maker is not preset:** **Become a supplier** with your WhatsApp number, approve yourself at `/admin`, log in with your email and password, then add your designs (Products) and ready pairs (Stock). "Simulate new WhatsApp order" then creates a sample order from Pune Footwear House.
+  Sample suppliers (Kolhapur Chappal Kendra, Patil Chappal Udyog) and sample shops are loaded with the tables. **Your own maker is not preset:** **Become a supplier** with your WhatsApp number, approve yourself at `/admin`, log in with your email and password, then add your designs (Products) and ready pairs (Stock). "Simulate new WhatsApp order" then creates a sample order from Pune Footwear House.
 - **Admin (approve new suppliers):** http://localhost:8000/admin with `ADMIN_EMAIL` + `ADMIN_PASSWORD` from `backend/.env`
 - **API docs:** http://localhost:8000/docs (once `ADMIN_PASSWORD` is set, log in at `/admin` first)
-- **Tests:** `python -m pytest -q` (run from `backend/`)
+- **Unit tests:** `python -m pytest -q` (run from `backend/`)
+- **Agent tests with the real Claude:** `python -m agent_eval.run` (see `backend/agent_eval/README.md`)
 
 ## Mock data
 
@@ -117,7 +123,7 @@ python -m app.seed --reset
 
 **Tables** are created automatically from `app/models.py` (by the server on start, or by `--reset`), so you never have to run `CREATE TABLE` yourself. For reading or creating them by hand (e.g. in pgAdmin), `db/schema.sqlite.sql` and `db/schema.postgres.sql` contain the full `CREATE TABLE` statements. After changing `app/models.py`, regenerate them with `python -m app.schema_dump`.
 
-Set `SEED_DEMO_ORDERS=false` in `backend/.env` to load only `seed.sql`, with no past orders. To add a maker, product or shop, edit the SQL file and run `--reset`. Rows are linked by phone number and product code, so you never need to write ids.
+Set `SEED_DEMO_ORDERS=false` in `backend/.env` to skip the past orders. To add a maker, product or shop, edit the SQL file and run `--reset`. Rows are linked by phone number and product code, so you never need to write ids.
 
 The past orders never use Kolhapuri Classic, so the live demo order (Pune, Classic, 50 pairs) always gives 20 ready, 30 to make, 24 Nov.
 
@@ -155,7 +161,7 @@ $env:TEST_DATABASE_URL="postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:54
 ## How an order moves
 
 ```
-retailer WhatsApp ──> /webhooks/whatsapp ──> Sales Agent (Claude + tools)
+retailer WhatsApp ──> /webhooks/meta ──> Sales Agent (Claude + tools)
                                                  │ check_feasibility, create_order
                                                  ▼
                         awaiting_maker ──(maker replies 1 / dashboard)──> approved ──> in_production ──> ready ──> delivered
@@ -164,7 +170,7 @@ retailer WhatsApp ──> /webhooks/whatsapp ──> Sales Agent (Claude + tools
                               └─(2)──> rejected
 ```
 
-Each step writes to the audit log and sends a WhatsApp message (stored in the `message` table, and sent through Twilio if it's set up).
+Each step writes to the audit log and sends a WhatsApp message (stored in the `message` table, and sent through Meta when it's set up).
 
 ## Feasibility (backend/app/services/feasibility.py)
 
@@ -201,7 +207,6 @@ Rules: passwords are hashed with bcrypt; 5 wrong passwords lock the account for 
 | Demo | `POST /api/demo/simulate-order`, `POST /api/demo/orders/{code}/retailer-reply` | Dashboard demo buttons (turn off with `DEMO_MODE=false`) |
 | Internal | `POST /internal/feasibility`, `POST /internal/orders`, `POST /internal/simulate-message` | Used by the agent and for testing (header `X-Internal-Key`) |
 | Meta | `GET/POST /webhooks/meta` | Incoming WhatsApp messages (Meta Cloud API) |
-| Twilio | `POST /webhooks/whatsapp` | Incoming WhatsApp messages (Twilio) |
 
 Maker endpoints need `Authorization: Bearer <token>`.
 
@@ -216,51 +221,38 @@ Maker endpoints need `Authorization: Bearer <token>`.
 - **Retailer with a counter-offer:** YES / NO, also हो, नाही, हां, नहीं.
 - **Everything else from a retailer** goes to the Sales Agent.
 
-## Connect WhatsApp (Meta WhatsApp Cloud API) — recommended
+## Connect WhatsApp (Meta WhatsApp Cloud API)
 
 Meta gives a free **test number** (the KarigarSetu bot) that can message up to 5 phones.
 
 **How a message travels:** phone → Meta test number → Meta calls your webhook (`/webhooks/meta`) → backend + Claude → backend asks Meta to send the reply → phone.
 
-1. **Meta app (done once):** developers.facebook.com → My Apps → your app → WhatsApp → **API Setup** (Step 1 "Try it out").
-2. **Add your phones:** in "To" → *Manage phone number list* → add each phone (up to 5) and enter the code it receives. Send the *hello_world* test to each, then reply **"hi"** from each phone (this opens WhatsApp's 24-hour window, needed for the bot's own replies).
-3. **Fill in `backend/.env`:**
+1. **Meta app (done once):** developers.facebook.com → My Apps → your app → WhatsApp → **API Setup**.
+2. **Add your phones:** in "To" → *Manage phone number list* → add each phone (up to 5) and enter the code it receives. Then send **"hi"** from each phone to the test number (this opens WhatsApp's 24-hour window, needed for the bot's replies).
+3. **Fill in `backend/.env`** (never commit this file):
    ```
    WHATSAPP_PROVIDER=meta
-   META_WHATSAPP_TOKEN=EAA...            # API Setup → Generate access token (lasts ~24 hours)
-   META_PHONE_NUMBER_ID=1234567890       # API Setup → "Phone number ID" (not the phone number)
-   META_VERIFY_TOKEN=karigarsetu-verify-123   # any secret word you choose
-   META_APP_SECRET=abc123...             # App settings → Basic → App secret
-   ANTHROPIC_API_KEY=sk-ant-...
+   META_WHATSAPP_TOKEN=          # API Setup → Generate access token
+   META_PHONE_NUMBER_ID=         # API Setup → "Phone number ID" (not the phone number)
+   META_VERIFY_TOKEN=            # a secret word you choose; type the same word in Meta's webhook form
+   META_APP_SECRET=              # App settings → Basic → App secret
+   ANTHROPIC_API_KEY=
    ```
-4. **Make the maker's phone a maker** (country code, no `+`):
-   ```sql
-   UPDATE maker SET phone = '91XXXXXXXXXX' WHERE name = 'Shinde Footwear';
-   ```
-5. **Start the backend, then ngrok** in a second terminal: `ngrok http 8000`. Copy the `https://…ngrok-free.app` link.
-6. **Give Meta the webhook address:** WhatsApp → **Configuration** → Webhook → Edit:
-   - Callback URL: `https://<ngrok-link>/webhooks/meta`
+4. **Makers:** a maker's WhatsApp number is the one they used to sign up on the website (approved at `/admin`).
+5. **Give Meta the webhook address:** WhatsApp → **Configuration** → Webhook → Edit:
+   - Callback URL: `https://<your-domain>/webhooks/meta` (the server must be reachable over HTTPS)
    - Verify token: the same word as `META_VERIFY_TOKEN`
    - Click **Verify and save** (the backend must be running), then under *Webhook fields* subscribe to **messages**.
-7. **Test:** send "hello" from a phone. The uvicorn terminal shows `POST /webhooks/meta` and a reply arrives.
+6. **Test:** send "hello" from a phone. The server log shows `POST /webhooks/meta` and a reply arrives.
 
 **Good to know**
-- The access token expires after about 24 hours: generate a new one and restart the backend. Sending then fails with a 401 in the terminal log until you do.
+- The temporary access token expires after about 24 hours: generate a new one and restart the backend (sending fails with a 401 in the log until you do).
 - The bot can only send its own text to a phone that messaged it in the last 24 hours. Before a demo, send "hi" from every phone.
-- The ngrok link changes each time ngrok restarts (free plan): update the Callback URL in Meta.
 - Every incoming message is checked with HMAC-SHA256 using the App secret, and repeats are ignored (Meta sometimes delivers a message twice).
 - Voice notes and photos get a polite "please type your message" reply.
 
-## Connect WhatsApp (Twilio sandbox) — alternative
-
-1. Create a Twilio account, open Messaging → Try it out → WhatsApp sandbox, and join it from your phone.
-2. Copy `backend/.env.example` to `backend/.env` and fill in `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`.
-3. Set the sandbox's "When a message comes in" URL to `https://<your-server>/webhooks/whatsapp`. For local testing, expose port 8000 with a tunnel such as ngrok.
-4. Set `ANTHROPIC_API_KEY` so the Sales Agent can reply.
-
 ## Before going live
 
-- Twilio only: verify the `X-Twilio-Signature` header (the Meta webhook already checks signatures).
 - Meta: use a permanent System User token, and your own verified number (Meta Steps 2 and 3).
 - Set a long `ADMIN_PASSWORD` and `COOKIE_SECURE=true`.
 - Set `DEMO_MODE=false` and change `INTERNAL_API_KEY`.
