@@ -100,9 +100,9 @@ class StockIn(BaseModel):
 
 
 class ProductIn(BaseModel):
-    name: str
-    price_per_pair: int = Field(gt=0)
-    pairs_per_day: int = Field(default=5, gt=0)
+    name: str = ""
+    price_per_pair: float | int | str | None = None      # checked in add_product (friendly messages)
+    pairs_per_day: float | int | str | None = 5
     sizes: str = "6,7,8,9,10"
 
 
@@ -275,15 +275,12 @@ def products(maker: Maker = Depends(current_maker), session: Session = Depends(g
 def add_product(body: ProductIn, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)):
     """A maker adds a design they sell. Stock starts at 0 for every size."""
     import re
-    name = " ".join(body.name.split())
-    if len(name) < 2 or len(name) > 80:
-        raise HTTPException(400, "Enter the design name.")
-    try:
-        sizes = sorted({int(x) for x in re.split(r"[,\s]+", body.sizes.strip()) if x})
-    except ValueError:
-        raise HTTPException(400, "Sizes must be numbers, e.g. 6,7,8,9,10")
-    if not sizes or any(s < 1 or s > 15 for s in sizes):
-        raise HTTPException(400, "Sizes must be between 1 and 15, e.g. 6,7,8,9,10")
+
+    from . import validation as V
+    name = V.design_name(body.name)
+    price = V.whole_number(body.price_per_pair, "Price per pair", 1, 100000)
+    per_day = V.whole_number(body.pairs_per_day, "Pairs per day", 1, 1000)
+    sizes = V.sizes(body.sizes)
     mine = session.exec(select(Product).where(Product.maker_id == maker.id)).all()
     if any(p.name.lower() == name.lower() for p in mine):
         raise HTTPException(409, f"You already have a design called {name}.")
@@ -291,8 +288,8 @@ def add_product(body: ProductIn, maker: Maker = Depends(current_maker), session:
     code, n = base, 2
     while any(p.code == code for p in mine):
         code, n = f"{base}-{n}", n + 1
-    p = Product(maker_id=maker.id, code=code, name=name, price_per_pair=body.price_per_pair,
-                pairs_per_day=body.pairs_per_day, sizes=",".join(map(str, sizes)))
+    p = Product(maker_id=maker.id, code=code, name=name, price_per_pair=price,
+                pairs_per_day=per_day, sizes=",".join(map(str, sizes)))
     session.add(p)
     session.flush()
     for s in sizes:

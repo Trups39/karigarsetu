@@ -131,6 +131,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--tan);outline-off
 .login-card input{width:100%}
 .su-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+input.bad,textarea.bad{border-color:var(--red);background:#fffafa}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:64px}
+.pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--tan-d);font-size:13px;font-weight:500;padding:6px 8px;border-radius:8px}
+.pw-toggle:hover{background:var(--gray-bg)}
+label .opt{font-weight:400;color:var(--muted)}
 .ap-row{display:grid;grid-template-columns:2fr 1fr 1fr 1.4fr;gap:12px}
 .ap-row input{width:100%}
 @media (max-width:760px){.ap-row{grid-template-columns:1fr 1fr}}
@@ -467,10 +473,11 @@ function contact(){
       <div class="card">
         <h3>Send us a message</h3>
         ${S.contactSent ? `<div class="okmsg">${esc(S.contactSent)}</div>` : `<form id="contactForm" novalidate>
-          <div class="field"><label for="cf-name">Your name</label><input id="cf-name" autocomplete="name" style="width:100%"></div>
-          <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" autocomplete="email" style="width:100%"></div>
-          <div class="field"><label for="cf-phone">Phone (optional)</label><input id="cf-phone" type="tel" autocomplete="tel" style="width:100%"></div>
-          <div class="field"><label for="cf-msg">Message</label><textarea id="cf-msg" rows="5" style="width:100%" placeholder="Tell us about your shop or workshop"></textarea></div>
+          <div class="field"><label for="cf-name">Your name *</label><input id="cf-name" autocomplete="name" maxlength="100" aria-describedby="cfe-name"><div class="err ferr" id="cfe-name"></div></div>
+          <div class="field"><label for="cf-email">Email *</label><input id="cf-email" type="email" autocomplete="email" maxlength="254" placeholder="name@example.com" aria-describedby="cfe-email"><div class="err ferr" id="cfe-email"></div></div>
+          <div class="field"><label for="cf-phone">Phone <span class="opt">(optional)</span></label><input id="cf-phone" type="tel" autocomplete="tel" maxlength="20" placeholder="+91 98000 00000" aria-describedby="cfe-phone"><div class="err ferr" id="cfe-phone"></div></div>
+          <div class="field"><label for="cf-msg">Message *</label><textarea id="cf-msg" rows="5" maxlength="2000" placeholder="Tell us about your shop or workshop" aria-describedby="cfe-msg"></textarea>
+            <div style="display:flex;justify-content:space-between;gap:8px"><div class="err ferr" id="cfe-msg"></div><div class="note" id="cf-count" style="margin-top:6px;white-space:nowrap">0 / 2000</div></div></div>
           <div class="hp" aria-hidden="true"><label for="cf-web">Website</label><input id="cf-web" tabindex="-1" autocomplete="off"></div>
           <div id="cfErr" class="err"></div>
           <button class="btn primary" type="submit" id="cfBtn">Send message</button>
@@ -492,8 +499,8 @@ function login(){
   return `<div class="login-wrap"><form class="card login-card" id="loginForm" novalidate>
     <h2>Supplier login</h2>
     <p class="note" style="margin-top:-4px">For makers. Retailers order on WhatsApp and don't need an account.</p>
-    <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="email" placeholder="you@example.com"></div>
-    <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="username" maxlength="254" placeholder="you@example.com"></div>
+    <div class="field"><label for="pw">Password</label><div class="pw-wrap"><input id="pw" type="password" autocomplete="current-password" maxlength="72"><button type="button" class="pw-toggle" data-pw="pw" aria-label="Show password">Show</button></div></div>
     <div id="loginErr" class="err"></div>
     <button class="btn primary" type="submit" id="loginBtn" style="width:100%;justify-content:center;margin-top:6px">Log in</button>
     <p class="note" style="margin:14px 0 0">New maker? <a href="#signup">Become a supplier</a><br>
@@ -511,18 +518,19 @@ function signup(){
   return `<div class="login-wrap"><form class="card login-card" id="signupForm" novalidate style="max-width:520px">
     <h2>Become a supplier</h2>
     <p class="note" style="margin-top:-4px">Get bulk orders from shops across India, right on WhatsApp. We verify every workshop before the account goes live.</p>
-    <div class="field"><label for="su-name">Your name</label><input id="su-name" autocomplete="name"></div>
-    <div class="field"><label for="su-biz">Business name</label><input id="su-biz" placeholder="e.g. Shinde Footwear"></div>
+    <p class="note" style="margin:-4px 0 12px">All fields are required.</p>
+    <div class="field"><label for="su-name">Your name</label><input id="su-name" autocomplete="name" maxlength="100"></div>
+    <div class="field"><label for="su-biz">Business name</label><input id="su-biz" autocomplete="organization" maxlength="100" placeholder="e.g. Shinde Footwear"></div>
     <div class="su-row">
-      <div class="field"><label for="su-craft">Craft</label><input id="su-craft" placeholder="e.g. Kolhapuri chappals"></div>
-      <div class="field"><label for="su-town">Town / city</label><input id="su-town" placeholder="e.g. Kolhapur"></div>
+      <div class="field"><label for="su-craft">Craft</label><input id="su-craft" maxlength="80" placeholder="e.g. Kolhapuri chappals"></div>
+      <div class="field"><label for="su-town">Town / city</label><input id="su-town" autocomplete="address-level2" maxlength="80" placeholder="e.g. Kolhapur"></div>
     </div>
-    <div class="field"><label for="su-ph">WhatsApp number</label><input id="su-ph" type="tel" inputmode="tel" placeholder="98000 00000">
+    <div class="field"><label for="su-ph">WhatsApp number</label><input id="su-ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="98000 00000 or +91 98000 00000">
       <div class="note">Orders from shops will come to this number on WhatsApp.</div></div>
-    <div class="field"><label for="su-em">Email</label><input id="su-em" type="email" autocomplete="email"></div>
+    <div class="field"><label for="su-em">Email</label><input id="su-em" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com"><div class="note">You'll log in with this email.</div></div>
     <div class="su-row">
-      <div class="field"><label for="su-pw">Password</label><input id="su-pw" type="password" autocomplete="new-password"><div class="note">At least 8 characters.</div></div>
-      <div class="field"><label for="su-pw2">Confirm password</label><input id="su-pw2" type="password" autocomplete="new-password"></div>
+      <div class="field"><label for="su-pw">Password</label><div class="pw-wrap"><input id="su-pw" type="password" autocomplete="new-password" maxlength="72"><button type="button" class="pw-toggle" data-pw="su-pw" aria-label="Show password">Show</button></div><div class="note">At least 8 characters, with a letter and a number.</div></div>
+      <div class="field"><label for="su-pw2">Confirm password</label><div class="pw-wrap"><input id="su-pw2" type="password" autocomplete="new-password" maxlength="72"><button type="button" class="pw-toggle" data-pw="su-pw2" aria-label="Show password">Show</button></div></div>
     </div>
     <div id="signupErr" class="err"></div>
     <button class="btn primary" type="submit" id="signupBtn" style="width:100%;justify-content:center;margin-top:6px">Create account</button>
@@ -638,10 +646,10 @@ function products(){
   <form class="card" id="addProductForm" novalidate style="margin-top:18px">
     <h3 style="margin-bottom:12px">Add a design</h3>
     <div class="ap-row">
-      <div class="field"><label for="ap-name">Design name</label><input id="ap-name" placeholder="e.g. Kolhapuri Classic"></div>
-      <div class="field"><label for="ap-price">Price per pair (₹)</label><input id="ap-price" type="number" min="1" step="1" placeholder="550"></div>
-      <div class="field"><label for="ap-cap">Pairs per day</label><input id="ap-cap" type="number" min="1" step="1" value="5"></div>
-      <div class="field"><label for="ap-sizes">Sizes</label><input id="ap-sizes" value="6,7,8,9,10"></div>
+      <div class="field"><label for="ap-name">Design name</label><input id="ap-name" maxlength="80" placeholder="e.g. Kolhapuri Classic"></div>
+      <div class="field"><label for="ap-price">Price per pair (₹)</label><input id="ap-price" inputmode="numeric" maxlength="6" placeholder="550"></div>
+      <div class="field"><label for="ap-cap">Pairs per day</label><input id="ap-cap" inputmode="numeric" maxlength="4" value="5"></div>
+      <div class="field"><label for="ap-sizes">Sizes</label><input id="ap-sizes" maxlength="40" value="6,7,8,9,10"></div>
     </div>
     <div id="apErr" class="err"></div>
     <button class="btn primary" type="submit" id="apBtn">Add design</button>
@@ -726,55 +734,171 @@ document.addEventListener('change', e=>{
   else if (t.dataset.price){ const p=S.products.find(x=>x.id===t.dataset.price); p.price=Math.max(1,v); log('Maker',`Price updated: ${p.name} = ${rupee(p.price)}`); render(); }
 });
 
+/* ---------- form checks: one set of rules for every form ----------
+   The server applies the same rules (backend/app/validation.py), so they can't be skipped.
+   Errors appear under each field, when you leave it and when you press the button. */
+const EMAIL_OK = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
+const squash = v => v.trim().replace(/\s+/g, ' ');
+const lettersOk = (v, extra) => new RegExp(`^[\\p{L}\\p{M}${extra}]+$`, 'u').test(v) && /\p{L}/u.test(v);
+const R = {
+  personName: v => { v = squash(v);
+    if (v.length < 2) return 'Please enter your name.';
+    if (v.length > 100) return 'Name is too long (max 100 characters).';
+    if (!lettersOk(v, " .'\\-")) return 'Name can only have letters, spaces, dots, apostrophes and hyphens.';
+    return ''; },
+  business: v => { v = squash(v);
+    if (v.length < 2) return 'Please enter your business name.';
+    if (v.length > 100) return 'Business name is too long (max 100 characters).';
+    if (!lettersOk(v.replace(/[&0-9]/g, ''), " .,'\\-()/")) return "Business name can have letters, numbers, spaces and . , & ' - ( ) /";
+    return ''; },
+  placeOrCraft: label => v => { v = squash(v);
+    if (v.length < 2) return `Please enter your ${label}.`;
+    if (v.length > 80) return `${label[0].toUpperCase() + label.slice(1)} is too long (max 80 characters).`;
+    if (!lettersOk(v.replace(/&/g, ''), " .,'\\-()/")) return `${label[0].toUpperCase() + label.slice(1)} can only have letters, spaces and . , & ' - ( ) /`;
+    return ''; },
+  email: v => { v = v.trim();
+    if (!v) return 'Please enter your email address.';
+    if (v.length > 254 || v.includes('..') || !EMAIL_OK.test(v)) return 'Please enter a valid email address, like name@example.com.';
+    return ''; },
+  whatsapp: v => { v = v.trim();
+    if (!v) return 'Please enter your WhatsApp number.';
+    if (!/^\+?[\d\s()-]+$/.test(v)) return 'WhatsApp number can only have digits, spaces, + and -.';
+    let d = v.replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '0') d = d.slice(1);
+    if (d.length === 10){ if (!/[6-9]/.test(d[0])) return 'Indian mobile numbers start with 6, 7, 8 or 9. Add the country code for other countries.'; d = '91' + d; }
+    if (d.length === 12 && d.startsWith('91') && !/[6-9]/.test(d[2])) return 'Indian mobile numbers start with 6, 7, 8 or 9.';
+    if (d.length < 11 || d.length > 15) return 'Please enter a valid WhatsApp number: 10 digits, or with the country code.';
+    return ''; },
+  phoneOptional: v => { v = v.trim();
+    if (!v) return '';
+    if (!/^\+?[\d\s()-]+$/.test(v)) return 'Phone number can only have digits, spaces, + and -.';
+    const n = v.replace(/\D/g, '').length;
+    if (n < 10 || n > 15) return 'Please enter a valid phone number (10 to 15 digits), or leave it empty.';
+    return ''; },
+  newPassword: emailId => v => {
+    if (v.length < 8) return 'Password must be at least 8 characters.';
+    if (new TextEncoder().encode(v).length > 72) return 'Password is too long (max 72 characters).';
+    if (!/[A-Za-z\u0900-\u097F]/.test(v) || !/\d/.test(v)) return 'Password needs at least one letter and one number.';
+    if (v.trim() !== v) return "Password can't start or end with a space.";
+    const em = (document.getElementById(emailId) || {}).value || '';
+    if (em && v.toLowerCase() === em.trim().toLowerCase()) return "Password can't be the same as your email.";
+    return ''; },
+  confirm: otherId => v => !v ? 'Please type the password again.' : (v !== document.getElementById(otherId).value ? 'Passwords do not match.' : ''),
+  required: msg => v => v ? '' : msg,
+  message: v => { v = v.trim();
+    if (v.length < 10) return 'Please write a message (at least 10 characters).';
+    if (v.length > 2000) return 'Message is too long (max 2000 characters).';
+    return ''; },
+  designName: v => { v = squash(v);
+    if (v.length < 2) return 'Enter the design name.';
+    if (v.length > 80) return 'Design name is too long (max 80 characters).';
+    if (!lettersOk(v.replace(/[0-9]/g, ''), " .,'\\-()/&")) return "Design name can have letters, numbers, spaces and . , ' - ( ) / &";
+    return ''; },
+  wholeNumber: (label, low, high) => v => { v = v.trim();
+    if (!v) return `Enter the ${label.toLowerCase()}.`;
+    if (!/^\d+$/.test(v)) return `${label} must be a whole number.`;
+    const n = +v; if (n < low || n > high) return `${label} must be between ${low.toLocaleString('en-IN')} and ${high.toLocaleString('en-IN')}.`;
+    return ''; },
+  sizes: v => { const parts = v.trim().split(/[,\s]+/).filter(Boolean);
+    if (!parts.length) return 'Enter the sizes, e.g. 6,7,8,9,10';
+    if (!parts.every(p => /^\d+$/.test(p))) return 'Sizes must be numbers separated by commas, e.g. 6,7,8,9,10';
+    const n = parts.map(Number); if (n.some(x => x < 1 || x > 15)) return 'Sizes must be between 1 and 15.';
+    if (new Set(n).size !== n.length) return 'Each size only once, please.';
+    return ''; }
+};
+const FORMS = {
+  contactForm:  {'cf-name': R.personName, 'cf-email': R.email, 'cf-phone': R.phoneOptional, 'cf-msg': R.message},
+  signupForm:   {'su-name': R.personName, 'su-biz': R.business, 'su-craft': R.placeOrCraft('craft'), 'su-town': R.placeOrCraft('town or city'),
+                 'su-ph': R.whatsapp, 'su-em': R.email, 'su-pw': R.newPassword('su-em'), 'su-pw2': R.confirm('su-pw')},
+  loginForm:    {'em': R.email, 'pw': R.required('Please enter your password.')},
+  addProductForm: {'ap-name': R.designName, 'ap-price': R.wholeNumber('Price per pair', 1, 100000),
+                   'ap-cap': R.wholeNumber('Pairs per day', 1, 1000), 'ap-sizes': R.sizes}
+};
+// Which field a message from the server belongs to (e.g. "An account with this email already exists").
+const SERVER_FIELD = {
+  signupForm: [[/password.*match/i,'su-pw2'], [/password/i,'su-pw'], [/whatsapp|mobile/i,'su-ph'], [/email/i,'su-em'],
+               [/business/i,'su-biz'], [/craft/i,'su-craft'], [/town|city/i,'su-town'], [/name/i,'su-name']],
+  contactForm: [[/email/i,'cf-email'], [/phone/i,'cf-phone'], [/message/i,'cf-msg'], [/name/i,'cf-name']],
+  addProductForm: [[/price/i,'ap-price'], [/pairs per day/i,'ap-cap'], [/size/i,'ap-sizes'], [/design/i,'ap-name']]
+};
+const ruleOf = id => { for (const f of Object.values(FORMS)) if (f[id]) return f[id]; return null; };
+function setFieldError(id, msg){
+  const el = document.getElementById(id); if (!el) return;
+  const box = el.closest('.field');
+  let e = box.querySelector('.ferr');
+  if (!e){ e = document.createElement('div'); e.className = 'err ferr'; e.id = id + '-err'; box.appendChild(e); el.setAttribute('aria-describedby', e.id); }
+  e.textContent = msg || '';
+  el.classList.toggle('bad', !!msg); el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+}
+function checkField(id){ const rule = ruleOf(id), el = document.getElementById(id); if (!rule || !el) return true;
+  const msg = rule(el.value); setFieldError(id, msg); return !msg; }
+function checkForm(formId){
+  const bad = Object.keys(FORMS[formId]).filter(id => !checkField(id));
+  if (bad.length) document.getElementById(bad[0]).focus();
+  return !bad.length;
+}
+function showServerError(formId, msg, generalEl){
+  const hit = (SERVER_FIELD[formId] || []).find(([re]) => re.test(msg));
+  if (hit && document.getElementById(hit[1])){ setFieldError(hit[1], msg); document.getElementById(hit[1]).focus(); }
+  else generalEl.textContent = msg;
+}
+document.addEventListener('focusout', e => {
+  const id = e.target.id;
+  if (ruleOf(id) && (e.target.value || e.target.dataset.touched)) { e.target.dataset.touched = '1'; checkField(id); }
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('.pw-toggle'); if (!t) return;
+  const input = document.getElementById(t.dataset.pw), show = input.type === 'password';
+  input.type = show ? 'text' : 'password'; t.textContent = show ? 'Hide' : 'Show';
+  t.setAttribute('aria-label', show ? 'Hide password' : 'Show password'); input.focus();
+});
+
 document.addEventListener('submit', e=>{
   e.preventDefault();
   if (e.target.id==='contactForm'){
     const v = id => document.getElementById(id).value;
-    const body = {name:v('cf-name'), email:v('cf-email'), phone:v('cf-phone'), message:v('cf-msg'), website:v('cf-web')};
-    const err = document.getElementById('cfErr');
-    if (body.name.trim().length < 2){ err.textContent = 'Please enter your name.'; return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email.trim())){ err.textContent = 'Please enter a valid email address.'; return; }
-    if (body.message.trim().length < 10){ err.textContent = 'Please write a message (at least 10 characters).'; return; }
+    const err = document.getElementById('cfErr'); err.textContent = '';
+    if (!checkForm('contactForm')) return;
+    const body = {name:squash(v('cf-name')), email:v('cf-email').trim(), phone:squash(v('cf-phone')), message:v('cf-msg').trim(), website:v('cf-web')};
     if (LIVE){ liveContact(body, err); return; }
     S.contactSent = 'Thank you! (Prototype: not sent.)'; render();
   }
   if (e.target.id==='addProductForm'){
     const v = id => document.getElementById(id).value;
-    const body = {name:v('ap-name').trim(), price_per_pair:Math.round(+v('ap-price')), pairs_per_day:Math.round(+v('ap-cap')) || 5, sizes:v('ap-sizes')};
-    const err = document.getElementById('apErr');
-    if (body.name.length < 2){ err.textContent = 'Enter the design name.'; return; }
-    if (!(body.price_per_pair > 0)){ err.textContent = 'Enter the price per pair.'; return; }
+    const err = document.getElementById('apErr'); err.textContent = '';
+    if (!checkForm('addProductForm')) return;
+    const body = {name:squash(v('ap-name')), price_per_pair:+v('ap-price'), pairs_per_day:+v('ap-cap'), sizes:v('ap-sizes')};
     if (LIVE){ liveAddProduct(body, err); return; }
     const id = body.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'design';
-    if (S.products.some(p => p.id === id)){ err.textContent = 'You already have this design.'; return; }
+    if (S.products.some(p => p.id === id)){ setFieldError('ap-name', 'You already have this design.'); return; }
     S.products.push({id, name:body.name, price:body.price_per_pair}); S.capacity[id] = body.pairs_per_day; S.committed[id] = 0;
     S.stock[id] = Object.fromEntries(S.sizes.map(z => [z, 0])); log('Maker', `Added design ${body.name}`); toast(`${body.name} added`); render();
   }
   if (e.target.id==='signupForm'){
     const v = id => document.getElementById(id).value;
-    const body = {name:v('su-name'), business_name:v('su-biz'), craft:v('su-craft'), town:v('su-town'),
-                  phone:v('su-ph'), email:v('su-em'), password:v('su-pw'), confirm_password:v('su-pw2')};
-    const err = document.getElementById('signupErr');
-    if (body.password !== body.confirm_password){ err.textContent = 'Passwords do not match.'; return; }
+    const err = document.getElementById('signupErr'); err.textContent = '';
+    if (!checkForm('signupForm')) return;
+    const body = {name:squash(v('su-name')), business_name:squash(v('su-biz')), craft:squash(v('su-craft')), town:squash(v('su-town')),
+                  phone:v('su-ph').trim(), email:v('su-em').trim(), password:v('su-pw'), confirm_password:v('su-pw2')};
     if (LIVE){ liveSignup(body, err); return; }
-    if (!body.name.trim() || !body.business_name.trim() || !body.email.includes('@')){ err.textContent = 'Please fill in every field.'; return; }
-    if (body.password.length < 8){ err.textContent = 'Password must be at least 8 characters.'; return; }
     S.signedUp = "Your account is under review. We'll message you on WhatsApp once it's approved. (Prototype: not sent.)"; render();
   }
   if (e.target.id==='loginForm'){
-    const err=document.getElementById('loginErr');
+    const err=document.getElementById('loginErr'); err.textContent = '';
+    if (!checkForm('loginForm')) return;
     const em=document.getElementById('em').value.trim().toLowerCase(), pw=document.getElementById('pw').value;
-    if (!em || !pw){ err.textContent='Enter your email and password.'; return; }
     if (LIVE){ liveLogin(em, pw, err); return; }
     if (em!=='demo@karigarsetu.in' || pw!=='Demo@12345'){ err.textContent='Invalid email or password. Prototype login: demo@karigarsetu.in / Demo@12345'; return; }
     S.loggedIn=true; S.view='overview'; location.hash='dashboard'; render();
   }
 });
 document.addEventListener('input', e=>{
-  if (e.target.closest('#addProductForm')) document.getElementById('apErr').textContent='';
-  if (e.target.closest('#contactForm')) document.getElementById('cfErr').textContent='';
-  if (e.target.closest('#loginForm')) document.getElementById('loginErr').textContent='';
-  if (e.target.closest('#signupForm')) document.getElementById('signupErr').textContent='';
+  const form = e.target.closest('form'); if (!form || !FORMS[form.id]) return;
+  const general = {contactForm:'cfErr', signupForm:'signupErr', loginForm:'loginErr', addProductForm:'apErr'}[form.id];
+  if (general && document.getElementById(general)) document.getElementById(general).textContent = '';
+  if (e.target.id === 'cf-msg') document.getElementById('cf-count').textContent = e.target.value.length + ' / 2000';
+  if (e.target.classList.contains('bad')) checkField(e.target.id);                       // clear as soon as it's fixed
+  if (e.target.id === 'su-pw' && document.getElementById('su-pw2').dataset.touched) checkField('su-pw2');
 });
 
 /* ---------- live mode: when this page is served by the KarigarSetu server, use the real API ---------- */
@@ -855,7 +979,7 @@ async function liveLogin(email, password, err){
 async function liveContact(body, err){
   const btn = document.getElementById('cfBtn'); btn.disabled = true; btn.textContent = 'Sending…';
   try { const r = await api('POST', '/api/contact', body); S.contactSent = r.message; render(); }
-  catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Send message'; }
+  catch (e){ showServerError('contactForm', e.message, err); btn.disabled = false; btn.textContent = 'Send message'; }
 }
 
 async function loadPublic(){
@@ -871,7 +995,7 @@ async function loadPublic(){
 async function liveAddProduct(body, err){
   const btn = document.getElementById('apBtn'); btn.disabled = true;
   try { await api('POST', '/api/products', body); await refresh(); toast(`${body.name} added`); render(); }
-  catch (e){ err.textContent = e.message; btn.disabled = false; }
+  catch (e){ showServerError('addProductForm', e.message, err); btn.disabled = false; }
 }
 
 async function liveSignup(body, err){
@@ -879,7 +1003,7 @@ async function liveSignup(body, err){
   try {
     const r = await api('POST', '/auth/signup', body);
     S.signedUp = r.message; render(); window.scrollTo(0, 0);
-  } catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Create account'; }
+  } catch (e){ showServerError('signupForm', e.message, err); btn.disabled = false; btn.textContent = 'Create account'; }
 }
 
 async function liveAction(a, o){

@@ -26,13 +26,13 @@ from . import config, i18n
 from .auth import end_session, issue_token, naive_utc, now_utc, token_hash
 from .db import get_session
 from .models import AccountStatus, AdminSession, Maker, MakerSession, SupplierAccount, utcnow
+from . import validation as V
 from .services import audit, mailer, notify
 
 log = logging.getLogger("karigarsetu.accounts")
 router = APIRouter()
 
 ADMIN_COOKIE = "ks_admin"
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PENDING = "Your account is under review. We'll message you on WhatsApp once it's approved."
 ADMIN_PAGE = Path(__file__).resolve().parents[2] / "frontend" / "admin.html"
 
@@ -59,34 +59,10 @@ def _dummy_hash() -> str:
     return _DUMMY[0]
 
 
-# ---------- validation ----------
+# ---------- validation: shared rules in validation.py ----------
 
-def _clean(value: str, label: str, max_len: int = 120) -> str:
-    text = " ".join((value or "").split())
-    if len(text) < 2:
-        raise HTTPException(400, f"Please enter {label}.")
-    if len(text) > max_len:
-        raise HTTPException(400, f"{label[0].upper() + label[1:]} is too long.")
-    return text
-
-
-def _phone(raw: str) -> str:
-    digits = re.sub(r"\D", "", raw or "")
-    if len(digits) == 11 and digits.startswith("0"):
-        digits = digits[1:]
-    if len(digits) == 10:
-        digits = "91" + digits
-    if not 11 <= len(digits) <= 15:
-        raise HTTPException(400, "Please enter a valid WhatsApp number.")
-    return digits
-
-
-def _password(p: str) -> str:
-    if len(p or "") < 8:
-        raise HTTPException(400, "Password must be at least 8 characters.")
-    if len(p.encode()) > 72:
-        raise HTTPException(400, "Password is too long (max 72 characters).")
-    return p
+def _phone(raw: str) -> str:   # kept for older imports
+    return V.whatsapp(raw)
 
 
 def account_view(a: SupplierAccount) -> dict:
@@ -122,13 +98,10 @@ class AdminLoginIn(BaseModel):
 
 @router.post("/auth/signup", status_code=201, tags=["supplier login"])
 def signup(body: SignupIn, background: BackgroundTasks, session: Session = Depends(get_session)):
-    email = (body.email or "").strip().lower()
-    if not EMAIL_RE.match(email) or len(email) > 254:
-        raise HTTPException(400, "Please enter a valid email address.")
-    a = SupplierAccount(name=_clean(body.name, "your name"), business_name=_clean(body.business_name, "your business name"),
-                        craft=_clean(body.craft, "your craft", 80), town=_clean(body.town, "your town or city", 80),
-                        phone=_phone(body.phone), email=email, password_hash="")
-    _password(body.password)
+    a = SupplierAccount(name=V.person_name(body.name), business_name=V.business_name(body.business_name),
+                        craft=V.place_or_craft(body.craft, "craft"), town=V.place_or_craft(body.town, "town or city"),
+                        phone=V.whatsapp(body.phone), email=V.email(body.email), password_hash="")
+    V.new_password(body.password, a.email)
     if body.password != body.confirm_password:
         raise HTTPException(400, "Passwords do not match.")
     if session.exec(select(SupplierAccount).where(SupplierAccount.email == a.email)).first():

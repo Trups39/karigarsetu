@@ -61,7 +61,10 @@ def test_contact_form_emails_the_mailbox_and_saves(client, sent):
 
 
 @pytest.mark.parametrize("field,value,error", [
-    ("name", "", "name"), ("email", "not-an-email", "email"), ("message", "hi", "message")])
+    ("name", "", "name"), ("name", "12", "letters"), ("name", "<script>", "letters"),
+    ("email", "not-an-email", "email"), ("email", "a@b.c", "email"), ("email", "a..b@shop.in", "email"),
+    ("phone", "abc", "digits"), ("phone", "12345", "10 to 15"),
+    ("message", "hi", "message"), ("message", "x" * 2001, "too long")])
 def test_contact_form_validation(client, sent, field, value, error):
     r = client.post("/api/contact", json={**GOOD, field: value})
     assert r.status_code == 400 and error in r.json()["detail"]
@@ -118,3 +121,9 @@ def test_public_makers_hide_pending_and_empty_makers(client):
                                       "password": "goodpass123", "confirm_password": "goodpass123"})
     names = {m["name"] for m in client.get("/public/makers").json()}
     assert "Asha Chappals" not in names            # pending: no maker yet; approved without designs: hidden
+
+
+@pytest.mark.parametrize("name,phone", [("तृप्ती भोसले", ""), ("D'Souza-Patil Jr.", "+91 98220-11111"),
+                                        ("Rahul", "(022) 2345 6789")])
+def test_contact_form_accepts_real_names_and_phones(client, sent, name, phone):
+    assert client.post("/api/contact", json={**GOOD, "name": name, "phone": phone}).status_code == 200

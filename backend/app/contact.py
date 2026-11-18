@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from . import config
+from . import validation as V
 from .db import get_session
 from .models import ContactMessage
 from .services import mailer
@@ -20,7 +21,6 @@ from .services import mailer
 log = logging.getLogger("karigarsetu.contact")
 router = APIRouter()
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 LIMIT, WINDOW = 5, 3600          # at most 5 messages per hour from one address
 _recent: dict[str, list[float]] = {}
 
@@ -47,16 +47,8 @@ def _rate_ok(key: str) -> bool:
 def contact(body: ContactIn, request: Request, session: Session = Depends(get_session)):
     if body.website.strip():                       # a bot filled in the hidden field: pretend it worked
         return {"ok": True, "message": "Thank you! We'll get back to you soon."}
-    name = " ".join(body.name.split())
-    email = body.email.strip().lower()
-    phone = re.sub(r"[^\d+ ]", "", body.phone)[:20]
-    text = body.message.strip()
-    if not 2 <= len(name) <= 100:
-        raise HTTPException(400, "Please enter your name.")
-    if not EMAIL_RE.match(email) or len(email) > 254:
-        raise HTTPException(400, "Please enter a valid email address.")
-    if not 10 <= len(text) <= 3000:
-        raise HTTPException(400, "Please write a message (at least 10 characters).")
+    name, email = V.person_name(body.name), V.email(body.email)
+    phone, text = V.optional_phone(body.phone), V.message(body.message)
     if not _rate_ok(request.client.host if request.client else "?"):
         raise HTTPException(429, "Too many messages. Please try again in an hour.")
 

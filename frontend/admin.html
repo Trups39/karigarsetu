@@ -96,6 +96,10 @@ function showLogin(enabled, needsEmail){
   const f = document.getElementById('f');
   f.addEventListener('submit', async e => {
     e.preventDefault();
+    const em = document.getElementById('em'), pw = document.getElementById('pw'), errEl = document.getElementById('err');
+    if (em && !/^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(em.value.trim())){ errEl.textContent = 'Please enter a valid admin email.'; em.focus(); return; }
+    if (!pw.value){ errEl.textContent = 'Please enter the admin password.'; pw.focus(); return; }
+    errEl.textContent = '';
     const btn = document.getElementById('go'); btn.disabled = true;
     try {
       // One login per browser: end any supplier login on this device first.
