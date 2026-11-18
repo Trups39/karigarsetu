@@ -54,6 +54,7 @@ karigarsetu/
     │   ├── db.py                 database connection
     │   ├── auth.py               maker sessions (Bearer token), internal key
     │   ├── accounts.py           supplier sign-up, email + password login, admin approval
+    │   ├── contact.py            website contact form -> contact@karigarsetu.co.in (Titan email)
     │   ├── agent.py              Sales Agent (retailers) + shared agent loop
     │   ├── ops_agent.py          Operations Agent (makers)
     │   ├── whatsapp.py           routes incoming messages (maker, retailer, agents)
@@ -65,11 +66,13 @@ karigarsetu/
     │       ├── orders.py         order statuses, audit entries, messages
     │       ├── inventory.py      stock, capacity, price, buffer days
     │       ├── notify.py         outgoing WhatsApp (Meta Cloud API, or stored only)
+    │       ├── mailer.py         outgoing email through the Titan mailbox (SMTP)
     │       └── audit.py
     ├── tests/                    unit tests (python -m pytest -q)
     │   ├── conftest.py           test settings
     │   ├── test_flow.py          end-to-end tests
-    │   └── test_accounts.py      sign-up, login, sessions, admin approval
+    │   ├── test_accounts.py      sign-up, login, sessions, admin approval
+    │   └── test_contact.py       contact form, alert email, home page makers
     └── agent_eval/               agent tests with the real Claude (python -m agent_eval.run)
         ├── cases.json            scenarios: Sales Agent, Operations Agent, fallbacks
         └── run.py                runs them on a temporary database and writes a report
@@ -179,6 +182,14 @@ For each size: `ready = min(stock, ordered)`, `to_make = ordered - ready`.
 
 The Pune example (Classic, sizes 7:15, 8:20, 9:15) gives 20 ready, 30 to make, ready by 24 Nov 2026.
 
+## Contact form and email (GoDaddy Titan)
+
+- The **Contact** page has a form (name, email, phone, message). Each message is saved in the `contact_message` table and emailed to `contact@karigarsetu.co.in` through the Titan mailbox, with the sender as Reply-To.
+- When a maker signs up, the team gets an email "New supplier waiting for approval" with a link to `/admin`.
+- Settings in `backend/.env`: `SMTP_HOST=smtp.titan.email`, `SMTP_PORT=465`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `CONTACT_TO`, `PUBLIC_URL`. **The password is only in `.env`**, never in the code or the repo. (If Titan rejects the login, try `SMTP_HOST=smtpout.secureserver.net`.)
+- Spam protection: a hidden "website" field that bots fill in, field checks, and at most 5 messages per hour from one address.
+- Without SMTP settings the form still works locally: messages are saved but not emailed (the log says so).
+
 ## Supplier accounts and login
 
 1. A maker opens **Become a supplier** (`/#signup`, also linked from Login and Contact) and enters name, business, craft, town, WhatsApp number, email and password. The account is **pending**.
@@ -193,7 +204,9 @@ Rules: passwords are hashed with bcrypt; 5 wrong passwords lock the account for 
 
 | Who | Endpoint | What it does |
 |---|---|---|
-| Public | `GET /public/makers` | Makers, designs and WhatsApp links |
+| Public | `GET /public/makers` | Approved makers with designs, prices and an "Order on WhatsApp" link to the bot |
+| Public | `GET /public/info` | Contact email and bot WhatsApp number shown on the site |
+| Public | `POST /api/contact` | Website contact form: saved, and emailed to `CONTACT_TO` through Titan |
 | Public | `POST /auth/signup` | Supplier sign-up (name, business, craft, town, WhatsApp number, email, password); account starts **pending** |
 | Maker | `POST /auth/login`, `POST /auth/logout` | Email + password login (only once approved), returns a token |
 | Admin | `GET /admin`, `POST /api/admin/login`, `GET /api/admin/accounts`, `POST /api/admin/accounts/{id}/approve`, `/reject` | Approve or reject new suppliers (admin cookie) |

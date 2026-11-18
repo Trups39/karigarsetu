@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 import bcrypt
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -26,7 +26,7 @@ from . import config, i18n
 from .auth import end_session, issue_token, naive_utc, now_utc, token_hash
 from .db import get_session
 from .models import AccountStatus, AdminSession, Maker, MakerSession, SupplierAccount, utcnow
-from .services import audit, notify
+from .services import audit, mailer, notify
 
 log = logging.getLogger("karigarsetu.accounts")
 router = APIRouter()
@@ -121,7 +121,7 @@ class AdminLoginIn(BaseModel):
 # ---------- supplier: sign up, log in, log out ----------
 
 @router.post("/auth/signup", status_code=201, tags=["supplier login"])
-def signup(body: SignupIn, session: Session = Depends(get_session)):
+def signup(body: SignupIn, background: BackgroundTasks, session: Session = Depends(get_session)):
     email = (body.email or "").strip().lower()
     if not EMAIL_RE.match(email) or len(email) > 254:
         raise HTTPException(400, "Please enter a valid email address.")
@@ -139,6 +139,13 @@ def signup(body: SignupIn, session: Session = Depends(get_session)):
     session.add(a)
     session.commit()
     audit.log(session, "System", "account.signup", f"{a.business_name} ({a.email}) signed up, waiting for approval")
+    session.commit()
+    # Tell the KarigarSetu team by email (Titan mailbox on our domain); never blocks the sign-up.
+    background.add_task(mailer.send_quietly, f"New supplier waiting for approval: {a.business_name}",
+                        f"{a.name} signed up as a supplier on KarigarSetu.\n\n"
+                        f"Business: {a.business_name}\nCraft:    {a.craft}\nTown:     {a.town}\n"
+                        f"WhatsApp: +{a.phone}\nEmail:    {a.email}\n\n"
+                        f"Approve or reject: {config.PUBLIC_URL}/admin\n")
     return {"status": a.status, "message": PENDING}
 
 

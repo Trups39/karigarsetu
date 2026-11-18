@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KarigarSetu prototype</title>
+<title>KarigarSetu · From the maker's bench to your shop shelf</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -130,6 +130,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--tan);outline-off
 .login-card{width:100%;max-width:400px}
 .login-card input{width:100%}
 .su-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .ap-row{display:grid;grid-template-columns:2fr 1fr 1fr 1.4fr;gap:12px}
 .ap-row input{width:100%}
 @media (max-width:760px){.ap-row{grid-template-columns:1fr 1fr}}
@@ -223,9 +224,18 @@ const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); retu
 const rupee = n => '₹' + Math.round(n).toLocaleString('en-IN');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-const MAKERS = [
-  {id:'shinde', name:'Shinde Footwear', place:'Kolhapur, Maharashtra', since:'Family craft since 1978', designs:['Kolhapuri Classic','Kapshi','Paytan'], lead:'7–12 days', moq:'20 pairs', cap:'18 pairs/day', wa:'919800000001', color:'#E9D2B4'},
-  {id:'patil', name:'Patil Chappal Udyog', place:'Kapshi, Kolhapur district', since:'12 artisans, hand-stitched', designs:['Kapshi','Bakkal','Kolhapuri Classic'], lead:'10–15 days', moq:'30 pairs', cap:'12 pairs/day', wa:'919800000002', color:'#D9C2A2'}
+// Contact details and the KarigarSetu WhatsApp bot. Replaced by /public/info when the server is running.
+let CONTACT = {email:'contact@karigarsetu.co.in', whatsapp:'15551567876'};
+const phoneLabel = d => { d = String(d||'');
+  if (d.length === 11 && d[0] === '1') return `+1 ${d.slice(1,4)} ${d.slice(4,7)} ${d.slice(7)}`;
+  if (d.length === 12 && d.startsWith('91')) return `+91 ${d.slice(2,7)} ${d.slice(7)}`;
+  return d ? '+' + d : ''; };
+
+// Makers on the home page. Replaced by the live list (/public/makers) when the server is running.
+const MAKER_COLORS = ['#E9D2B4','#D9C2A2','#E4CBA8','#D7BC98'];
+let MAKERS = [
+  {id:'kendra', name:'Kolhapur Chappal Kendra', place:'Kolhapur, Maharashtra', since:'Verified KarigarSetu supplier', designs:['Kolhapuri Classic','Kapshi','Paytan'], facts:[['From ₹480','Per pair'],['20 pairs','Minimum order'],['18 pairs/day','Capacity']], color:'#E9D2B4'},
+  {id:'patil', name:'Patil Chappal Udyog', place:'Kapshi, Kolhapur district', since:'Verified KarigarSetu supplier', designs:['Kapshi','Kachkadi','Pukari'], facts:[['From ₹420','Per pair'],['30 pairs','Minimum order'],['15 pairs/day','Capacity']], color:'#D9C2A2'}
 ];
 
 /* Add a maker's photo by setting img to a data: URI (remote images are blocked in the artifact) */
@@ -294,7 +304,7 @@ function chappal(color, strap){
       <circle cx="75" cy="22" r="5" fill="none" stroke="${strap}" stroke-width="3"/>
     </g></svg>`;
 }
-function waLink(m){ return `https://wa.me/${m.wa}?text=${encodeURIComponent('Hi, I want to place a bulk order with ' + m.name + ' via KarigarSetu')}`; }
+function waLink(m){ return m.link || `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent('Hi, I want to place a bulk order with ' + m.name + ' via KarigarSetu')}`; }
 
 function renderNav(route){
   const items = [['home','Home'],['about','About'],['contact','Contact']];
@@ -303,7 +313,7 @@ function renderNav(route){
                   : `<a href="#login" class="login ${route==='login'?'active':''}">Supplier login</a>`;
   document.getElementById('nav').innerHTML = h;
 }
-const footer = () => `<footer class="site"><div class="wrap"><span>© 2026 KarigarSetu · From the maker's bench to your shop shelf</span><span>support@karigarsetu.in · WhatsApp +91 98000 00000</span></div></footer>`;
+const footer = () => `<footer class="site"><div class="wrap"><span>© 2026 KarigarSetu · From the maker's bench to your shop shelf</span><span><a href="mailto:${CONTACT.email}">${CONTACT.email}</a> · WhatsApp ${phoneLabel(CONTACT.whatsapp)}</span></div></footer>`;
 
 /* ---------- public pages ---------- */
 function home(){
@@ -342,18 +352,15 @@ function home(){
     <span class="eyebrow">Participating makers</span>
     <h2>Order directly from a workshop</h2>
     <div class="makers">
+      ${MAKERS.length ? '' : '<p class="note">New makers are joining. Check back soon.</p>'}
       ${MAKERS.map(m=>`
       <article class="maker">
         <div class="ph" style="background:${m.color}">${chappal('#F4E3CB','#6B3510')}</div>
         <div class="body">
-          <h3>${m.name}</h3>
-          <div class="meta"><span>${m.place}</span><span>${m.since}</span></div>
-          <div class="tags">${m.designs.map(d=>`<span class="tag">${d}</span>`).join('')}</div>
-          <div class="facts">
-            <div class="fact"><b>${m.lead}</b><small>Typical lead time</small></div>
-            <div class="fact"><b>${m.moq}</b><small>Minimum order</small></div>
-            <div class="fact"><b>${m.cap}</b><small>Capacity</small></div>
-          </div>
+          <h3>${esc(m.name)}</h3>
+          <div class="meta"><span>${esc(m.place)}</span><span>${esc(m.since)}</span></div>
+          <div class="tags">${m.designs.map(d=>`<span class="tag">${esc(d)}</span>`).join('')}</div>
+          <div class="facts">${m.facts.map(([v,l])=>`<div class="fact"><b>${esc(v)}</b><small>${esc(l)}</small></div>`).join('')}</div>
           <a class="btn wa" href="${waLink(m)}" target="_blank" rel="noopener" style="align-self:flex-start">
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5-.3.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>
             Order on WhatsApp</a>
@@ -458,10 +465,18 @@ function contact(){
     <h1>Get in touch</h1>
     <div class="cols" style="margin-top:20px">
       <div class="card">
-        <h3>Reach us</h3>
-        <p>Email: support@karigarsetu.in</p>
-        <p>WhatsApp: +91 98000 00000</p>
-        <p class="note">Retailers: to place an order, use a maker's "Order on WhatsApp" button on the Home page.</p>
+        <h3>Send us a message</h3>
+        ${S.contactSent ? `<div class="okmsg">${esc(S.contactSent)}</div>` : `<form id="contactForm" novalidate>
+          <div class="field"><label for="cf-name">Your name</label><input id="cf-name" autocomplete="name" style="width:100%"></div>
+          <div class="field"><label for="cf-email">Email</label><input id="cf-email" type="email" autocomplete="email" style="width:100%"></div>
+          <div class="field"><label for="cf-phone">Phone (optional)</label><input id="cf-phone" type="tel" autocomplete="tel" style="width:100%"></div>
+          <div class="field"><label for="cf-msg">Message</label><textarea id="cf-msg" rows="5" style="width:100%" placeholder="Tell us about your shop or workshop"></textarea></div>
+          <div class="hp" aria-hidden="true"><label for="cf-web">Website</label><input id="cf-web" tabindex="-1" autocomplete="off"></div>
+          <div id="cfErr" class="err"></div>
+          <button class="btn primary" type="submit" id="cfBtn">Send message</button>
+        </form>`}
+        <p class="note" style="margin-top:14px">Or email <a href="mailto:${CONTACT.email}">${CONTACT.email}</a>.
+          Retailers: to order, tap "Order on WhatsApp" on the Home page or message ${phoneLabel(CONTACT.whatsapp)}.</p>
       </div>
       <div class="card">
         <h3>Makers: join KarigarSetu</h3>
@@ -482,7 +497,7 @@ function login(){
     <div id="loginErr" class="err"></div>
     <button class="btn primary" type="submit" id="loginBtn" style="width:100%;justify-content:center;margin-top:6px">Log in</button>
     <p class="note" style="margin:14px 0 0">New maker? <a href="#signup">Become a supplier</a><br>
-      Forgot your password? Email support@karigarsetu.in</p>
+      Forgot your password? Email ${CONTACT.email}</p>
   </form></div>`;
 }
 
@@ -713,6 +728,16 @@ document.addEventListener('change', e=>{
 
 document.addEventListener('submit', e=>{
   e.preventDefault();
+  if (e.target.id==='contactForm'){
+    const v = id => document.getElementById(id).value;
+    const body = {name:v('cf-name'), email:v('cf-email'), phone:v('cf-phone'), message:v('cf-msg'), website:v('cf-web')};
+    const err = document.getElementById('cfErr');
+    if (body.name.trim().length < 2){ err.textContent = 'Please enter your name.'; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email.trim())){ err.textContent = 'Please enter a valid email address.'; return; }
+    if (body.message.trim().length < 10){ err.textContent = 'Please write a message (at least 10 characters).'; return; }
+    if (LIVE){ liveContact(body, err); return; }
+    S.contactSent = 'Thank you! (Prototype: not sent.)'; render();
+  }
   if (e.target.id==='addProductForm'){
     const v = id => document.getElementById(id).value;
     const body = {name:v('ap-name').trim(), price_per_pair:Math.round(+v('ap-price')), pairs_per_day:Math.round(+v('ap-cap')) || 5, sizes:v('ap-sizes')};
@@ -747,6 +772,7 @@ document.addEventListener('submit', e=>{
 });
 document.addEventListener('input', e=>{
   if (e.target.closest('#addProductForm')) document.getElementById('apErr').textContent='';
+  if (e.target.closest('#contactForm')) document.getElementById('cfErr').textContent='';
   if (e.target.closest('#loginForm')) document.getElementById('loginErr').textContent='';
   if (e.target.closest('#signupForm')) document.getElementById('signupErr').textContent='';
 });
@@ -826,6 +852,22 @@ async function liveLogin(email, password, err){
   } catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Log in'; }
 }
 
+async function liveContact(body, err){
+  const btn = document.getElementById('cfBtn'); btn.disabled = true; btn.textContent = 'Sending…';
+  try { const r = await api('POST', '/api/contact', body); S.contactSent = r.message; render(); }
+  catch (e){ err.textContent = e.message; btn.disabled = false; btn.textContent = 'Send message'; }
+}
+
+async function loadPublic(){
+  try {
+    const [info, makers] = await Promise.all([api('GET', '/public/info'), api('GET', '/public/makers')]);
+    CONTACT = {email: info.email || CONTACT.email, whatsapp: info.whatsapp || CONTACT.whatsapp};
+    MAKERS = makers.map((m, i) => ({id:'m' + m.id, name:m.name, place:m.place, since:'Verified KarigarSetu supplier',
+      designs:m.designs.map(d => d.name), link:m.whatsapp, color:MAKER_COLORS[i % MAKER_COLORS.length],
+      facts:[['From ' + rupee(m.price_from), 'Per pair'], [m.min_order + ' pairs', 'Minimum order'], [m.pairs_per_day + ' pairs/day', 'Capacity']]}));
+  } catch (e) { /* keep the built-in sample list */ }
+}
+
 async function liveAddProduct(body, err){
   const btn = document.getElementById('apBtn'); btn.disabled = true;
   try { await api('POST', '/api/products', body); await refresh(); toast(`${body.name} added`); render(); }
@@ -892,7 +934,8 @@ async function boot(){
     if (h && h.ok){
       LIVE = true;
       if (h.today) TODAY = new Date(h.today + 'T09:00:00');
-      document.querySelector('.demo-strip').textContent = 'Connected to the KarigarSetu server.';
+      document.querySelector('.demo-strip').style.display = 'none';   // live site: no prototype banner
+      await loadPublic();
     }
   } catch (e) {}
   if (LIVE){
@@ -909,6 +952,7 @@ function render(){
   if (route==='dashboard' && !S.loggedIn) route='login';
   if ((route==='login' || route==='signup') && S.loggedIn) route='dashboard';
   if (route!=='signup') S.signedUp = null;
+  if (route!=='contact') S.contactSent = null;
   // Show the page we actually opened in the address bar (e.g. #login when the dashboard needs a login).
   if (location.hash.replace('#','') !== route) history.replaceState(null, '', '#' + route);
   renderNav(route);

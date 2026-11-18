@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlmodel import Session, func, select
 
-from . import accounts, auth, i18n, meta_webhook, whatsapp
+from . import accounts, auth, contact, i18n, meta_webhook, whatsapp
 from .auth import clean_phone, current_maker, internal_only
 from . import config
 from .db import engine, get_session, init_db
@@ -43,10 +43,19 @@ async def lifespan(app: FastAPI):
     with Session(engine) as s:
         seed(s)
         accounts.relink_accounts(s)   # supplier logins point at the maker with their WhatsApp number
+    import logging
+    lg = logging.getLogger("karigarsetu")
     if not config.ADMIN_PASSWORD:
-        import logging
-        logging.getLogger("karigarsetu").warning(
-            "ADMIN_PASSWORD is not set: /admin is off and /docs is open. Set it before going online.")
+        lg.warning("ADMIN_PASSWORD is not set: /admin is off and /docs is open. Set it before going online.")
+    from pathlib import Path as _P
+    env_file = _P(__file__).resolve().parents[1] / ".env"
+    lg.info("Settings file: %s (%s)", env_file, "found" if env_file.exists() else "NOT FOUND")
+    if config.SMTP_USERNAME and config.SMTP_PASSWORD:
+        lg.info("Email: on, via %s:%s as %s, contact form goes to %s",
+                config.SMTP_HOST, config.SMTP_PORT, config.SMTP_USERNAME, config.CONTACT_TO)
+    else:
+        lg.warning("Email: OFF (SMTP_USERNAME / SMTP_PASSWORD missing in %s). Contact form messages are "
+                   "saved but not emailed.", env_file)
     yield
 
 
@@ -54,6 +63,7 @@ app = FastAPI(title="KarigarSetu API", version="0.1", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.middleware("http")(accounts.protect_docs)   # /docs, /redoc, /openapi.json: admin only (when ADMIN_PASSWORD is set)
 app.include_router(accounts.router)              # /auth/signup, /auth/login, /auth/logout, /admin, /api/admin/*
+app.include_router(contact.router)               # /api/contact (website contact form -> Titan email)
 
 
 @app.exception_handler(orders.OrderError)
@@ -159,14 +169,33 @@ def health():
 
 @app.get("/public/makers")
 def public_makers(session: Session = Depends(get_session)):
+    """Makers shown on the home page: approved (or sample) suppliers that have at least one design.
+    "Order on WhatsApp" opens a chat with the KarigarSetu bot, with the maker's name already typed."""
+    from urllib.parse import quote
+
+    from .models import AccountStatus, SupplierAccount
     out = []
     for m in session.exec(select(Maker).order_by(Maker.id)).all():
+        acc = session.exec(select(SupplierAccount).where(SupplierAccount.maker_id == m.id)).first()
+        if acc and acc.status != AccountStatus.approved:
+            continue
         ps = session.exec(select(Product).where(Product.maker_id == m.id).order_by(Product.id)).all()
+        if not ps:
+            continue
+        text = f"Hi, I want to place a bulk order with {m.name} via KarigarSetu"
+        number = config.BOT_WHATSAPP_NUMBER or m.phone
         out.append({"id": m.id, "name": m.name, "place": m.place, "min_order": m.min_order,
-                    "whatsapp": f"https://wa.me/{m.phone}",
+                    "whatsapp": f"https://wa.me/{number}?text={quote(text)}",
                     "designs": [{"name": p.name, "price_per_pair": p.price_per_pair} for p in ps],
+                    "price_from": min(p.price_per_pair for p in ps),
                     "pairs_per_day": sum(p.pairs_per_day for p in ps)})
     return out
+
+
+@app.get("/public/info")
+def public_info():
+    """Contact details shown on the website."""
+    return {"email": config.CONTACT_TO, "whatsapp": config.BOT_WHATSAPP_NUMBER}
 
 
 # ---------- maker login: see accounts.py (sign-up, email + password, admin approval) ----------

@@ -25,6 +25,17 @@ CREATE INDEX ix_auditlog_maker_id ON auditlog (maker_id);
 CREATE INDEX ix_auditlog_order_code ON auditlog (order_code);
 CREATE INDEX ix_auditlog_ts ON auditlog (ts);
 
+CREATE TABLE contact_message (
+	id SERIAL NOT NULL, 
+	name VARCHAR NOT NULL, 
+	email VARCHAR NOT NULL, 
+	phone VARCHAR NOT NULL, 
+	message VARCHAR NOT NULL, 
+	emailed BOOLEAN NOT NULL, 
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+	PRIMARY KEY (id)
+);
+
 CREATE TABLE conversation (
 	phone VARCHAR NOT NULL, 
 	maker_id INTEGER, 

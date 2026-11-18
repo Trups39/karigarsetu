@@ -17,3 +17,7 @@ os.environ["ADMIN_EMAIL"] = "admin@karigarsetu.co.in"
 os.environ["ADMIN_PASSWORD"] = "test-admin"
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["BCRYPT_ROUNDS"] = "4"          # fast hashing in tests only
+os.environ["SMTP_USERNAME"] = ""           # never send real email from tests
+os.environ["SMTP_PASSWORD"] = ""
+os.environ["BOT_WHATSAPP_NUMBER"] = ""
+os.environ["PUBLIC_URL"] = "http://testserver"

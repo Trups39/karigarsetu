@@ -152,6 +152,18 @@ class SupplierAccount(SQLModel, table=True):
     reviewed_at: Optional[datetime] = None
 
 
+class ContactMessage(SQLModel, table=True):
+    """Messages from the website contact form (also emailed to CONTACT_TO)."""
+    __tablename__ = "contact_message"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str
+    phone: str = ""
+    message: str
+    emailed: bool = False
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class AdminSession(SQLModel, table=True):
     __tablename__ = "admin_session"
     token: str = Field(primary_key=True)           # SHA-256 of the cookie value

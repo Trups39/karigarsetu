@@ -29,6 +29,7 @@ os.environ.update({
     "DATABASE_URL": "sqlite:///" + os.path.join(_tmp, "eval.db"),
     "SAMPLE_MAKERS": "true", "SEED_DEMO_ORDERS": "true", "DEMO_TODAY": "2026-11-16",
     "WHATSAPP_PROVIDER": "none",          # never send real WhatsApp messages from a test
+    "SMTP_USERNAME": "", "SMTP_PASSWORD": "",   # and no real email
     "DEMO_RETAILER_PHONE": "", "INTERNAL_API_KEY": "agent-eval-key", "ADMIN_PASSWORD": "eval-only",
 })
 

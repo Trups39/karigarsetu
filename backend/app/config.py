@@ -28,7 +28,18 @@ INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "dev-internal-key")
 # Leave empty only on your own laptop.
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip().lower()   # admin logs in with this email + ADMIN_PASSWORD
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
-SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@karigarsetu.in")
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "contact@karigarsetu.co.in")
+
+# ---------- Email on our GoDaddy domain (Titan): contact form + new-supplier alerts ----------
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.titan.email")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))            # 465 = SSL, 587 = STARTTLS
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")              # the mailbox, e.g. contact@karigarsetu.co.in
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")              # only in backend/.env, never in the repo
+CONTACT_TO = os.getenv("CONTACT_TO", "contact@karigarsetu.co.in")   # where contact-form messages go
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8000").rstrip("/")   # e.g. https://karigarsetu.co.in
+
+# The KarigarSetu WhatsApp bot (Meta number), digits only. "Order on WhatsApp" buttons open a chat with it.
+BOT_WHATSAPP_NUMBER = os.getenv("BOT_WHATSAPP_NUMBER", "").strip().lstrip("+").replace(" ", "").replace("-", "")
 SUPPLIER_SESSION_DAYS = int(os.getenv("SUPPLIER_SESSION_DAYS", "14"))   # stay logged in this long
 ADMIN_SESSION_HOURS = int(os.getenv("ADMIN_SESSION_HOURS", "12"))
 MAX_FAILED_LOGINS = int(os.getenv("MAX_FAILED_LOGINS", "5"))             # then the account is locked...
