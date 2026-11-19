@@ -66,17 +66,88 @@ Built for the **Claude × GoDaddy hackathon** (agentic business solutions for sm
 ## Architecture
 
 ```
- WhatsApp (shops, makers) ──► Meta Cloud API ──► POST /webhooks/meta ─┐
-                                                                      ▼
- Browser ──► https://karigarsetu.co.in ──► FastAPI (backend/app) ──► whatsapp/router.py: maker or shop?
-   website, dashboard, /admin                │                        ├─ quick reply 1/2/3, YES/NO → services
-                                             │                        ├─ shop  → agents/sales.py      ─┐
-                                             │                        └─ maker → agents/operations.py ─┤ Claude API
-                                             ▼                                                               │
-                                  services/  feasibility · orders · inventory · notify · mailer · audit ◄──────┘ (tools)
-                                             │
-                                             ▼
-                                        PostgreSQL            Titan SMTP (contact@karigarsetu.co.in)
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph CLIENTS["Clients"]
+    R(["Retailer<br/>WhatsApp"])
+    M(["Artisan maker<br/>WhatsApp"])
+    S(["Supplier / admin<br/>Browser"])
+    V(["Visitor<br/>Browser"])
+  end
+  META["Meta WhatsApp<br/>Cloud API"]
+  DNS["GoDaddy DNS<br/>karigarsetu.co.in"]
+  subgraph VPS["GoDaddy VPS · Docker Compose"]
+    subgraph EDGE["Edge"]
+      CADDY["Caddy<br/>TLS · reverse proxy"]
+    end
+    subgraph APP["FastAPI app"]
+      subgraph IN["Interfaces"]
+        WH["Meta webhook<br/>HMAC verify"]
+        API["Web API<br/>session auth"]
+      end
+      subgraph AG["AI agents"]
+        SA["Sales agent"]
+        OA["Operations agent"]
+      end
+      subgraph CORE["Core services"]
+        ORD["Orders +<br/>feasibility"]
+        INV["Inventory"]
+        ACC["Accounts +<br/>admin approval"]
+        NOT["Notify + mailer"]
+      end
+    end
+    subgraph DATA["Data"]
+      DB[("PostgreSQL 16")]
+    end
+  end
+  subgraph X["Third-party"]
+    CL["Anthropic<br/>Claude API"]
+    MOUT["Meta Graph API<br/>send message"]
+    TI["GoDaddy Titan<br/>SMTP"]
+  end
+  R -->|sends message| META
+  M -->|sends message| META
+  S -->|HTTPS| DNS
+  V -->|HTTPS| DNS
+  META -->|webhook POST| CADDY
+  DNS -->|resolves| CADDY
+  CADDY -->|proxies| WH
+  CADDY -->|proxies| API
+  WH -->|retailer msg| SA
+  WH -->|maker msg| OA
+  SA -->|tool calls| ORD
+  OA -->|tool calls| ORD
+  OA -->|tool calls| INV
+  API -->|REST| ORD
+  API -->|REST| INV
+  API -->|REST| ACC
+  ORD -->|reads/writes| DB
+  INV -->|reads/writes| DB
+  ACC -->|reads/writes| DB
+  ORD -->|triggers| NOT
+  ACC -->|triggers| NOT
+  SA <-->|LLM + tools| CL
+  OA <-->|LLM + tools| CL
+  NOT -->|sends reply| MOUT
+  NOT -->|sends email| TI
+  classDef ai fill:#EEEDFE,stroke:#534AB7,color:#26215C
+  classDef gd fill:#E1F5EE,stroke:#0F6E56,color:#04342C
+  classDef db fill:#E6F1FB,stroke:#185FA5,color:#042C53
+  class SA,OA,CL ai
+  class DNS,TI gd
+  class DB db
+```
+
+### Main data flows
+
+1. **Retailer order:** the retailer sends a WhatsApp message. Meta POSTs it to the webhook, which checks the HMAC signature and hands it to the Sales agent. Claude works out what the retailer wants and calls tools. Orders + feasibility checks stock and capacity and writes the order to PostgreSQL. Notify sends the reply back through the Meta Graph API.
+2. **Maker update:** the maker's message goes the same way to the Operations agent. Approvals and stock changes go through the Orders and Inventory services, never straight from the AI.
+3. **Web:** suppliers and the admin log in over HTTPS through Caddy, then use the dashboard (orders, stock, designs) and admin approval through the REST API.
+4. **Contact and alerts:** the contact form and new-supplier sign-ups trigger the mailer, which sends email through GoDaddy Titan SMTP.
+
+The MVP has no CDN, cache or message queue: webhooks are handled inside the request, and PostgreSQL transactions stop the same stock being sold twice. A queue in front of the agents and Redis for sessions are the next steps for scaling.
 ```
 
 ## Project structure
