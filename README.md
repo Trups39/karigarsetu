@@ -18,8 +18,8 @@ Built by **Trupti Bhosale** (from Kolhapur) for the **GoDaddy Inclusive Innovati
 | **Contact** | contact@karigarsetu.co.in |
 
 
-[!IMPORTANT]
-**Why the video matters:** the bot runs on Meta's free test number, which **only replies to phone numbers we have registered** (up to 5). If you message it from your own phone, you won't get an answer until we add you. Email your WhatsApp number to contact@karigarsetu.co.in or use the contact form, and we'll add it. Otherwise the demo video shows the full flow.
+> [!IMPORTANT]
+> **Why the video matters:** the bot runs on Meta's free test number, which **only replies to phone numbers we have registered (up to 5)**. If you message it from your own phone, you won't get an answer until we add you. **Email your WhatsApp number to [contact@karigarsetu.co.in](mailto:contact@karigarsetu.co.in)** or use the contact form, and we'll add it. Otherwise **the demo video shows the full flow.**
 
 ### 5-minute test on the website (no setup needed)
 
