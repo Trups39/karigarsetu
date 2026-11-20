@@ -132,6 +132,8 @@ CREATE TABLE "order" (
 	status VARCHAR(15) NOT NULL, 
 	proposed_date DATE, 
 	due_date DATE, 
+	requested_price INTEGER, 
+	requested_date DATE, 
 	reserved_ready INTEGER NOT NULL, 
 	to_make INTEGER NOT NULL, 
 	created_at DATETIME NOT NULL, 

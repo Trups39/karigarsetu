@@ -610,6 +610,7 @@ function orderDetail(o){
   const showFeas = ['awaiting','counter'].includes(o.status);
   return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h3>${o.id}</h3><div class="note">${esc(o.retailer)} · ${o.city} · ordered in ${o.lang}</div></div><span class="pill s-${o.status}">${statusLabel(o.status)}</span></div>
   <p style="margin:12px 0 4px"><b>${pname(o.product)}</b>, ${qty(o)} pairs · ${rupee(o.price)}/pair · <b>${rupee(total)}</b></p>
+  ${o.status==='awaiting'&&(o.reqPrice||o.reqDate)?`<p class="note" style="margin:4px 0">Shop's request: ${o.reqPrice?`${rupee(o.reqPrice)}/pair (total ${rupee(qty(o)*o.reqPrice)})`:''}${o.reqPrice&&o.reqDate?', ':''}${o.reqDate?`delivery ${o.reqDate}`:''}. <b>Approve</b> accepts it.</p>`:''}
   ${showFeas?`<div class="feas"><div class="a"><b>${f.ready}</b><small>Ready now</small></div><div class="b"><b>${f.make}</b><small>To make</small></div><div class="c"><b>${o.due||f.date}</b><small>${o.due?'Agreed date':'Earliest delivery'}</small></div></div>
   <table style="font-size:13.5px"><thead><tr><th>Size</th><th>Ordered</th><th>In stock</th><th>Ready</th><th>To make</th></tr></thead><tbody>
   ${f.rows.map(r=>`<tr><td>${r.size}</td><td>${r.q}</td><td>${r.have}</td><td>${r.r}</td><td>${r.m}</td></tr>`).join('')}</tbody></table>
@@ -953,7 +954,8 @@ async function refresh(){
   S.stock = {}; stock.forEach(r => { S.stock[r.product_code] = {...r.sizes}; });
   S.orders = list.map(o => ({id:o.code, retailer:o.retailer_name, retailerPhone:o.retailer_phone, city:o.city || '-',
     lang:o.language || 'WhatsApp', product:o.product_code, lines:Object.fromEntries(o.lines.map(l => [l.size, l.qty])),
-    status:STATUS_IN[o.status] || o.status, created:fmtTs(o.created_at), price:o.price_per_pair, due:fmtDay(o.due_date), _make:o.to_make}));
+    status:STATUS_IN[o.status] || o.status, created:fmtTs(o.created_at), price:o.price_per_pair, due:fmtDay(o.due_date), _make:o.to_make,
+    reqPrice:o.requested_price, reqDate:fmtDay(o.requested_date)}));
   S.audit = rows.map(a => ({t:fmtTs(a.ts), who:a.actor,
     text:(a.order_code ? a.order_code + ': ' : '') + (ACTION_TEXT[a.action] || a.action) + (a.detail ? ' · ' + a.detail : '')}));
   if (!S.orders.find(o => o.id === S.selected)) S.selected = S.orders[0] ? S.orders[0].id : null;

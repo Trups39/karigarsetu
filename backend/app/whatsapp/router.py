@@ -39,10 +39,28 @@ def _maker_reply(session: Session, maker: Maker, text: str) -> str:
     lang = maker.language
     if not order:
         return i18n.t("maker_nothing_pending", lang)
+    if not m:  # no order code: only safe when exactly one order is waiting
+        pending = session.exec(
+            select(Order.code)
+            .where(Order.maker_id == maker.id, Order.status == OrderStatus.awaiting_maker)
+            .order_by(Order.created_at)
+        ).all()
+        if len(pending) > 1:
+            return i18n.t(
+                "maker_which_order", lang, n=len(pending), codes=", ".join(pending), example=f"{cmd} {pending[-1]}"
+            )
     try:
         if cmd == "1":
             orders.approve(session, order)
-            return i18n.t("maker_approved", lang, code=order.code, date=i18n.fmt_date(order.due_date, lang))
+            pairs = sum(orders.lines_of(session, order).values())
+            return i18n.t(
+                "maker_approved",
+                lang,
+                code=order.code,
+                price=orders.rupees(order.price_per_pair),
+                total_price=orders.rupees(pairs * order.price_per_pair),
+                date=i18n.fmt_date(order.due_date, lang),
+            )
         if cmd == "2":
             orders.reject(session, order)
             return i18n.t("maker_rejected", lang, code=order.code)
@@ -51,7 +69,15 @@ def _maker_reply(session: Session, maker: Maker, text: str) -> str:
         if not (new_date or new_price):
             return i18n.t("maker_change_help", lang, code=order.code)
         orders.counter(session, order, due_date=new_date, price_per_pair=new_price)
-        return i18n.t("maker_counter_sent", lang, code=order.code)
+        pairs = sum(orders.lines_of(session, order).values())
+        return i18n.t(
+            "maker_counter_sent",
+            lang,
+            code=order.code,
+            price=orders.rupees(order.price_per_pair),
+            total_price=orders.rupees(pairs * order.price_per_pair),
+            date=i18n.fmt_date(order.due_date, lang),
+        )
     except orders.OrderError as e:
         session.rollback()
         return str(e)

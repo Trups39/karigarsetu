@@ -46,6 +46,8 @@ Rules:
 - Dates: turn "5 December" or "पुढच्या सोमवारी" into YYYY-MM-DD, using today's date. Assume the next upcoming date.
 - Approving with a different delivery date is fine. A different price is a change the retailer must accept:
   use propose_change, not approve_order.
+- If an order has shop_requested_price or shop_requested_date, approve_order accepts them (the order gets the
+  shop's price and date). Say so when the maker approves. If the maker wants something else, use propose_change.
 - After a change, confirm in one line what was done (and say the retailer was notified, if they were).
 - If a tool returns an error, explain it simply and suggest what to do.
 
@@ -216,6 +218,8 @@ def _order_summary(session: Session, o: Order) -> dict:
         "pairs": sum(lines.values()),
         "sizes": lines,
         "price_per_pair": o.price_per_pair,
+        "shop_requested_price": o.requested_price,
+        "shop_requested_date": o.requested_date,
         "earliest_possible_date": o.proposed_date,
         "due_date": o.due_date,
     }

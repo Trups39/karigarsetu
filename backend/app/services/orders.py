@@ -107,10 +107,17 @@ def create(
     language: str = "",
     source_text: str = "",
     retailer_request: str = "",
+    requested_price: int | None = None,
+    requested_date: date | None = None,
 ) -> tuple[Order, feasibility.Feasibility]:
-    """retailer_request: what the shop asked for on top of the quote (e.g. a lower price or an earlier date).
-    It is only passed on to the maker; the order keeps the list price until the maker agrees."""
+    """retailer_request: what the shop asked for on top of the quote, in plain words.
+    requested_price / requested_date: the same wish as numbers. The order keeps the list price and the
+    earliest date until the maker replies 1 (approve), which accepts the shop's price and date."""
     retailer_request = " ".join((retailer_request or "").split())[:200]
+    if requested_price is not None and requested_price < 1:
+        raise OrderError("Requested price must be at least ₹1")
+    if requested_date is not None and requested_date < config.today():
+        raise OrderError("Requested delivery date can't be in the past")
     product = session.exec(select(Product).where(Product.maker_id == maker_id, Product.code == product_code)).first()
     if not product:
         raise OrderError(f"Maker {maker_id} has no product '{product_code}'")
@@ -132,6 +139,8 @@ def create(
         language=language,
         price_per_pair=product.price_per_pair,
         proposed_date=f.earliest_date,
+        requested_price=requested_price if requested_price != product.price_per_pair else None,
+        requested_date=requested_date,
     )
     session.add(order)
     session.flush()
@@ -159,6 +168,30 @@ def create(
         order.code,
     )
     ml = maker.language
+    request, summary = "", []
+    if order.requested_price is not None:
+        new_total = rupees(f.total * order.requested_price)
+        request += i18n.t(
+            "maker_shop_price",
+            ml,
+            price=rupees(order.requested_price),
+            list_price=rupees(product.price_per_pair),
+            total_price=new_total,
+        )
+        summary.append(i18n.t("summary_price", ml, price=rupees(order.requested_price), total_price=new_total))
+    if order.requested_date is not None and order.requested_date < f.earliest_date:  # can't be made by then
+        request += i18n.t(
+            "maker_shop_date_too_early",
+            ml,
+            date=i18n.fmt_date(order.requested_date, ml),
+            earliest=i18n.fmt_date(f.earliest_date, ml),
+        )
+    elif order.requested_date is not None:
+        request += i18n.t("maker_shop_date", ml, date=i18n.fmt_date(order.requested_date, ml))
+        summary.append(i18n.t("summary_date", ml, date=i18n.fmt_date(order.requested_date, ml)))
+    if not request and retailer_request:  # a wish that isn't a price or a date: pass the words on
+        request = i18n.t("maker_shop_request", ml, text=retailer_request)
+    menu = i18n.t("maker_menu_request", ml, summary=", ".join(summary)) if summary else i18n.t("maker_menu", ml)
     notify.send(
         session,
         maker.phone,
@@ -176,7 +209,8 @@ def create(
             date=i18n.fmt_date(f.earliest_date, ml),
             price=rupees(product.price_per_pair),
             total_price=rupees(f.total_price),
-            request=i18n.t("maker_shop_request", ml, text=retailer_request) if retailer_request else "",
+            request=request,
+            menu=menu,
         ),
         order.code,
     )
@@ -192,6 +226,15 @@ def create(
 def approve(session: Session, order: Order, actor: str = "Maker", due_date: date | None = None) -> Order:
     """Maker approves (optionally with their own delivery date), or retailer accepts a counter-offer."""
     _require(order, S.awaiting_maker, S.counter_offered)
+    accepted = []
+    if actor == "Maker" and order.status == S.awaiting_maker:  # approving accepts the shop's own request
+        if order.requested_price is not None and order.requested_price != order.price_per_pair:
+            order.price_per_pair = order.requested_price
+            accepted.append(f"price {rupees(order.requested_price)}/pair")
+        earliest = max(config.today(), order.proposed_date or config.today())
+        if due_date is None and order.requested_date is not None and order.requested_date >= earliest:
+            due_date = order.requested_date
+            accepted.append(f"delivery {fmt(due_date)}")
     if due_date is not None:
         if due_date < config.today():
             raise OrderError("Delivery date can't be in the past")
@@ -217,7 +260,8 @@ def approve(session: Session, order: Order, actor: str = "Maker", due_date: date
             session,
             "Maker",
             "order.approved",
-            f"{total} pairs at {rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}",
+            f"{total} pairs at {rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}"
+            + (f". Shop's request accepted: {', '.join(accepted)}" if accepted else ""),
             order.maker_id,
             order.code,
         )
@@ -241,6 +285,7 @@ def approve(session: Session, order: Order, actor: str = "Maker", due_date: date
             maker=maker.name,
             product=product.name,
             total=total,
+            price=rupees(order.price_per_pair),
             total_price=rupees(total * order.price_per_pair),
             date=i18n.fmt_date(order.due_date, rl),
         ),
@@ -326,16 +371,45 @@ def counter(
 
 def retailer_reply(session: Session, order: Order, accept: bool) -> Order:
     _require(order, S.counter_offered)
-    audit.log(session, "Retailer", "counter.accepted" if accept else "counter.declined", "", order.maker_id, order.code)
-    if accept:
-        return approve(session, order, actor="Retailer")
-    order = reject(session, order, "Retailer declined the counter-offer", actor="Retailer")
-    notify.send(
+    audit.log(
         session,
-        order.retailer_phone,
-        i18n.t("retailer_cancelled", retailer_language(session, order), code=order.code),
+        "Retailer",
+        "counter.accepted" if accept else "counter.declined",
+        f"{rupees(order.price_per_pair)}/pair, delivery {fmt(order.due_date)}",
+        order.maker_id,
         order.code,
     )
+    if accept:
+        order = approve(session, order, actor="Retailer")
+    else:
+        order = reject(session, order, "Retailer declined the counter-offer", actor="Retailer")
+        notify.send(
+            session,
+            order.retailer_phone,
+            i18n.t("retailer_cancelled", retailer_language(session, order), code=order.code),
+            order.code,
+        )
+    maker = session.get(Maker, order.maker_id)  # tell the maker how the shop answered
+    total = sum(lines_of(session, order).values())
+    ml = maker.language
+    notify.send(
+        session,
+        maker.phone,
+        i18n.t(
+            "maker_counter_accepted",
+            ml,
+            retailer=order.retailer_name,
+            code=order.code,
+            total=total,
+            price=rupees(order.price_per_pair),
+            total_price=rupees(total * order.price_per_pair),
+            date=i18n.fmt_date(order.due_date, ml),
+        )
+        if accept
+        else i18n.t("maker_counter_declined", ml, retailer=order.retailer_name, code=order.code),
+        order.code,
+    )
+    audit.log(session, "System", "maker.notified", "Retailer's answer sent on WhatsApp", order.maker_id, order.code)
     session.commit()
     return order
 

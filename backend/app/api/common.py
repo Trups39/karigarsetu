@@ -33,6 +33,8 @@ def order_view(session: Session, o: Order, detail: bool = False) -> dict:
         "total_pairs": total,
         "price_per_pair": o.price_per_pair,
         "total_price": total * o.price_per_pair,
+        "requested_price": o.requested_price,
+        "requested_date": o.requested_date,
         "proposed_date": o.proposed_date,
         "due_date": o.due_date,
         "reserved_ready": o.reserved_ready,

@@ -77,20 +77,17 @@ TEXTS = {
         "English": (
             "New bulk order {code}\nRetailer: {retailer}{city}\n{product}, {total} pairs ({lines})\n"
             "Ready: {ready} · To make: {to_make}\n"
-            "Proposed delivery: {date} · {price}/pair · total {total_price}{request}\n\n"
-            "Reply 1 to approve, 2 to reject, 3 to propose a change."
+            "Proposed delivery: {date} · {price}/pair · total {total_price}{request}\n\n{menu}"
         ),
         "Marathi": (
             "नवीन बल्क ऑर्डर {code}\nदुकान: {retailer}{city}\n{product}, {total} जोड्या ({lines})\n"
             "तयार: {ready} · बनवायच्या: {to_make}\n"
-            "अंदाजे डिलिव्हरी: {date} · {price}/जोडी · एकूण {total_price}{request}\n\n"
-            "मंजुरीसाठी 1, नाकारण्यासाठी 2, बदल सुचवण्यासाठी 3 पाठवा."
+            "अंदाजे डिलिव्हरी: {date} · {price}/जोडी · एकूण {total_price}{request}\n\n{menu}"
         ),
         "Hindi": (
             "नया बल्क ऑर्डर {code}\nदुकान: {retailer}{city}\n{product}, {total} जोड़ी ({lines})\n"
             "तैयार: {ready} · बनानी हैं: {to_make}\n"
-            "अनुमानित डिलीवरी: {date} · {price}/जोड़ी · कुल {total_price}{request}\n\n"
-            "मंज़ूरी के लिए 1, मना करने के लिए 2, बदलाव के लिए 3 भेजें."
+            "अनुमानित डिलीवरी: {date} · {price}/जोड़ी · कुल {total_price}{request}\n\n{menu}"
         ),
     },
     "maker_shop_request": {
@@ -98,10 +95,48 @@ TEXTS = {
         "Marathi": "\nदुकानाची विनंती: {text}",
         "Hindi": "\nदुकान का अनुरोध: {text}",
     },
+    "maker_shop_price": {
+        "English": "\nShop's request: {price}/pair instead of {list_price} · new total {total_price}",
+        "Marathi": "\nदुकानाची विनंती: {list_price} ऐवजी {price}/जोडी · नवीन एकूण {total_price}",
+        "Hindi": "\nदुकान का अनुरोध: {list_price} की जगह {price}/जोड़ी · नया कुल {total_price}",
+    },
+    "maker_shop_date": {
+        "English": "\nShop's request: delivery by {date}",
+        "Marathi": "\nदुकानाची विनंती: डिलिव्हरी {date} पर्यंत",
+        "Hindi": "\nदुकान का अनुरोध: डिलीवरी {date} तक",
+    },
+    "maker_shop_date_too_early": {
+        "English": "\nShop's request: delivery by {date} (earliest possible is {earliest}; to offer a date, reply 3)",
+        "Marathi": "\nदुकानाची विनंती: डिलिव्हरी {date} पर्यंत (सर्वात लवकर शक्य {earliest}; तारीख सुचवण्यासाठी 3 पाठवा)",
+        "Hindi": "\nदुकान का अनुरोध: डिलीवरी {date} तक (सबसे जल्दी संभव {earliest}; तारीख सुझाने के लिए 3 भेजें)",
+    },
+    "maker_which_order": {
+        "English": "You have {n} orders waiting: {codes}. Add the order code, e.g. {example}",
+        "Marathi": "तुमच्याकडे {n} ऑर्डर मंजुरीसाठी आहेत: {codes}. ऑर्डर कोडसह पाठवा, उदा. {example}",
+        "Hindi": "आपके पास {n} ऑर्डर मंज़ूरी के लिए हैं: {codes}. ऑर्डर कोड के साथ भेजें, जैसे {example}",
+    },
+    "maker_menu": {
+        "English": "Reply 1 to approve, 2 to reject, 3 to propose a change.",
+        "Marathi": "मंजुरीसाठी 1, नाकारण्यासाठी 2, बदल सुचवण्यासाठी 3 पाठवा.",
+        "Hindi": "मंज़ूरी के लिए 1, मना करने के लिए 2, बदलाव के लिए 3 भेजें.",
+    },
+    "maker_menu_request": {
+        "English": (
+            "Reply 1 to approve with the shop's request ({summary}), 2 to reject, 3 to propose something else."
+        ),
+        "Marathi": "दुकानाची विनंती मान्य करून मंजुरीसाठी 1 ({summary}), नाकारण्यासाठी 2, वेगळा बदल सुचवण्यासाठी 3 पाठवा.",
+        "Hindi": "दुकान का अनुरोध मानकर मंज़ूरी के लिए 1 ({summary}), मना करने के लिए 2, दूसरा बदल सुझाने के लिए 3 भेजें.",
+    },
+    "summary_price": {
+        "English": "{price}/pair, total {total_price}",
+        "Marathi": "{price}/जोडी, एकूण {total_price}",
+        "Hindi": "{price}/जोड़ी, कुल {total_price}",
+    },
+    "summary_date": {"English": "delivery {date}", "Marathi": "डिलिव्हरी {date}", "Hindi": "डिलीवरी {date}"},
     "maker_approved": {
-        "English": "Approved {code}. The retailer has been told. Delivery by {date}.",
-        "Marathi": "{code} मंजूर. दुकानदाराला कळवले आहे. डिलिव्हरी {date} पर्यंत.",
-        "Hindi": "{code} मंज़ूर. दुकानदार को बता दिया गया है. डिलीवरी {date} तक.",
+        "English": "Approved {code}: {price}/pair, total {total_price}. The retailer has been told. Delivery by {date}.",
+        "Marathi": "{code} मंजूर: {price}/जोडी, एकूण {total_price}. दुकानदाराला कळवले आहे. डिलिव्हरी {date} पर्यंत.",
+        "Hindi": "{code} मंज़ूर: {price}/जोड़ी, कुल {total_price}. दुकानदार को बता दिया गया है. डिलीवरी {date} तक.",
     },
     "maker_rejected": {
         "English": "Rejected {code}. The retailer has been told.",
@@ -109,9 +144,37 @@ TEXTS = {
         "Hindi": "{code} नामंज़ूर. दुकानदार को बता दिया गया है.",
     },
     "maker_counter_sent": {
-        "English": "Counter-offer for {code} sent to the retailer.",
-        "Marathi": "{code} साठी नवीन प्रस्ताव दुकानदाराला पाठवला.",
-        "Hindi": "{code} के लिए नया प्रस्ताव दुकानदार को भेज दिया.",
+        "English": (
+            "Counter-offer for {code} sent to the retailer: {price}/pair, total {total_price}, delivery {date}. "
+            "We'll tell you when they reply."
+        ),
+        "Marathi": (
+            "{code} साठी नवीन प्रस्ताव दुकानदाराला पाठवला: {price}/जोडी, एकूण {total_price}, डिलिव्हरी {date}. "
+            "त्यांचे उत्तर आल्यावर कळवू."
+        ),
+        "Hindi": (
+            "{code} के लिए नया प्रस्ताव दुकानदार को भेज दिया: {price}/जोड़ी, कुल {total_price}, डिलीवरी {date}. "
+            "उनका जवाब आने पर बताएंगे."
+        ),
+    },
+    "maker_counter_accepted": {
+        "English": (
+            "{retailer} accepted your offer for {code}: {total} pairs × {price} = {total_price}. "
+            "Order confirmed, delivery by {date}."
+        ),
+        "Marathi": (
+            "{retailer} यांनी {code} साठी तुमचा प्रस्ताव स्वीकारला: {total} जोड्या × {price} = {total_price}. "
+            "ऑर्डर कन्फर्म, डिलिव्हरी {date} पर्यंत."
+        ),
+        "Hindi": (
+            "{retailer} ने {code} के लिए आपका प्रस्ताव मान लिया: {total} जोड़ी × {price} = {total_price}. "
+            "ऑर्डर कन्फ़र्म, डिलीवरी {date} तक."
+        ),
+    },
+    "maker_counter_declined": {
+        "English": "{retailer} declined your offer for {code}. The order is cancelled.",
+        "Marathi": "{retailer} यांनी {code} साठी तुमचा प्रस्ताव नाकारला. ऑर्डर रद्द झाली आहे.",
+        "Hindi": "{retailer} ने {code} के लिए आपका प्रस्ताव नहीं माना. ऑर्डर रद्द हो गया है.",
     },
     "maker_change_help": {
         "English": (
@@ -161,15 +224,15 @@ TEXTS = {
     # ---- to the retailer ----
     "retailer_confirmed": {
         "English": (
-            "Your order {code} is confirmed by {maker}.\n{product}, {total} pairs, {total_price}.\n"
+            "Your order {code} is confirmed by {maker}.\n{product}, {total} pairs × {price} = {total_price}.\n"
             "Delivery by {date}. We'll send updates here."
         ),
         "Marathi": (
-            "तुमची ऑर्डर {code} {maker} यांनी कन्फर्म केली आहे.\n{product}, {total} जोड्या, {total_price}.\n"
+            "तुमची ऑर्डर {code} {maker} यांनी कन्फर्म केली आहे.\n{product}, {total} जोड्या × {price} = {total_price}.\n"
             "डिलिव्हरी {date} पर्यंत. पुढील अपडेट इथेच पाठवू."
         ),
         "Hindi": (
-            "आपका ऑर्डर {code} {maker} ने कन्फ़र्म कर दिया है.\n{product}, {total} जोड़ी, {total_price}.\n"
+            "आपका ऑर्डर {code} {maker} ने कन्फ़र्म कर दिया है.\n{product}, {total} जोड़ी × {price} = {total_price}.\n"
             "डिलीवरी {date} तक. आगे के अपडेट यहीं भेजेंगे."
         ),
     },

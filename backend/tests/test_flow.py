@@ -118,6 +118,8 @@ def test_counter_offer_accepted_by_retailer(client):
     o = client.get(f"/api/orders/{code}", headers=h).json()
     assert o["status"] == "approved" and o["price_per_pair"] == 600 and o["due_date"] == "2026-12-01"
     assert o["total_price"] == 30000
+    to_maker = [m["body"] for m in o["messages"] if m["phone"] == SHINDE]
+    assert "स्वीकारला: 50 जोड्या × ₹600 = ₹30,000" in to_maker[-1]
 
 
 def test_counter_offer_declined(client):
@@ -125,7 +127,9 @@ def test_counter_offer_declined(client):
     code = pune_order(client)["order"]["code"]
     client.post(f"/api/orders/{code}/counter", json={"price_per_pair": 650}, headers=h)
     client.post("/internal/simulate-message", json={"phone": RETAILER, "body": "no"}, headers=INTERNAL)
-    assert client.get(f"/api/orders/{code}", headers=h).json()["status"] == "rejected"
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert o["status"] == "rejected"
+    assert "नाकारला" in [m["body"] for m in o["messages"] if m["phone"] == SHINDE][-1]
 
 
 def test_maker_whatsapp_counter_with_date_and_price(client):
@@ -134,7 +138,7 @@ def test_maker_whatsapp_counter_with_date_and_price(client):
     r = client.post(
         "/internal/simulate-message", json={"phone": SHINDE, "body": f"3 {code} 2026-12-03 575"}, headers=INTERNAL
     )
-    assert "प्रस्ताव" in r.json()["reply"]
+    assert "₹575/जोडी, एकूण ₹28,750, डिलिव्हरी 3 डिसेंबर 2026" in r.json()["reply"]
     o = client.get(f"/api/orders/{code}", headers=h).json()
     assert (o["status"], o["price_per_pair"], o["due_date"]) == ("counter_offered", 575, "2026-12-03")
 
@@ -223,7 +227,13 @@ def test_agent_quotes_first_and_creates_the_order_only_after_the_shops_yes(clien
         # message 2: the shop says yes and asks for a lower price
         NS(
             stop_reason="tool_use",
-            content=[tool("create_order", {**order_args, "retailer_request": "₹520 per pair if possible"}, 3)],
+            content=[
+                tool(
+                    "create_order",
+                    {**order_args, "retailer_request": "₹520 per pair if possible", "requested_price_per_pair": 520},
+                    3,
+                )
+            ],
         ),
         NS(stop_reason="end_turn", content=[text("ऑर्डर KS-1041 मेकरकडे मंजुरीसाठी पाठवली आहे.")]),
     ]
@@ -257,7 +267,9 @@ def test_agent_quotes_first_and_creates_the_order_only_after_the_shops_yes(clien
     o = client.get("/api/orders", headers=h).json()[0]
     assert (o["code"], o["retailer_phone"], o["price_per_pair"]) == ("KS-1041", RETAILER, 550)  # list price kept
     to_maker = client.get("/api/messages", headers=h).json()
-    assert any("₹520 per pair if possible" in m["body"] and "KS-1041" in m["body"] for m in to_maker)
+    assert o["requested_price"] == 520
+    new_order = next(m["body"] for m in to_maker if "KS-1041" in m["body"])
+    assert "₹520/जोडी" in new_order and "₹26,000" in new_order  # the shop's price, in Marathi, with the new total
 
 
 def test_create_order_needs_a_matching_quote_from_an_earlier_message():
@@ -549,7 +561,7 @@ def test_meta_duplicate_delivery_is_handled_once(client, meta):
     first = pune_order(client)["order"]["code"]
     second = pune_order(client, [{"size": 6, "qty": 25}])["order"]["code"]
     h = login(client, SHINDE)
-    payload = meta_payload(SHINDE, "1", "wamid.dup-1")
+    payload = meta_payload(SHINDE, f"1 {first}", "wamid.dup-1")
     meta_post(client, payload)
     meta_post(client, payload)  # Meta retried the same message
     statuses = {code: client.get(f"/api/orders/{code}", headers=h).json()["status"] for code in (first, second)}
@@ -914,3 +926,101 @@ def test_maker_adds_a_design_on_whatsapp_with_the_websites_rules(client):
             s, maker, "add_design", {"name": "Bridal", "price_per_pair": 900, "sizes": [5, 6, 7]}, "x"
         )
         assert listed["sizes"] == [5, 6, 7]
+
+
+def _order_with_request(c, **request):
+    body = {
+        "maker_id": 1,
+        "product_code": "classic",
+        "retailer_name": "Bhosale Footwear",
+        "retailer_phone": RETAILER,
+        "city": "Sangrul",
+        "language": "Marathi",
+        "lines": [{"size": 8, "qty": 10}, {"size": 9, "qty": 10}],
+        **request,
+    }
+    r = c.post("/internal/orders", json=body, headers=INTERNAL)
+    assert r.status_code == 200, r.text
+    return r.json()["order"]["code"]
+
+
+def test_maker_reply_1_gives_the_order_the_shops_price(client):
+    h = login(client, SHINDE)
+    code = _order_with_request(client, retailer_request="₹520 please", requested_price=520)
+    to_maker = next(m["body"] for m in client.get("/api/messages", headers=h).json() if m["phone"] == SHINDE)
+    assert "₹550 ऐवजी ₹520/जोडी" in to_maker and "नवीन एकूण ₹10,400" in to_maker
+    assert "दुकानाची विनंती मान्य करून मंजुरीसाठी 1" in to_maker and "₹520 please" not in to_maker
+
+    reply = maker_says(client, "1")
+    assert "₹520/जोडी, एकूण ₹10,400" in reply
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert (o["status"], o["price_per_pair"], o["total_price"]) == ("approved", 520, 10400)
+    to_shop = [m["body"] for m in o["messages"] if m["phone"] == RETAILER]
+    assert "20 जोड्या × ₹520 = ₹10,400" in to_shop[-1]
+
+
+def test_maker_reply_1_without_a_request_keeps_the_list_price(client):
+    h = login(client, SHINDE)
+    code = _order_with_request(client, retailer_request="please pack in boxes")
+    to_maker = next(m["body"] for m in client.get("/api/messages", headers=h).json() if m["phone"] == SHINDE)
+    assert "please pack in boxes" in to_maker and "मंजुरीसाठी 1, नाकारण्यासाठी 2" in to_maker
+    assert "₹550/जोडी, एकूण ₹11,000" in maker_says(client, "1")
+    assert client.get(f"/api/orders/{code}", headers=h).json()["price_per_pair"] == 550
+
+
+def test_maker_counter_still_overrides_the_shops_request(client):
+    h = login(client, SHINDE)
+    code = _order_with_request(client, requested_price=500, requested_date="2026-12-20")
+    maker_says(client, f"3 {code} 530")
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert (o["status"], o["price_per_pair"]) == ("counter_offered", 530)
+    client.post(f"/internal/orders/{code}/retailer-reply", json={"accept": True}, headers=INTERNAL)
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert (o["status"], o["price_per_pair"]) == ("approved", 530)  # the retailer accepted 530, not their 500
+
+
+def test_maker_reply_1_accepts_the_shops_date(client):
+    h = login(client, SHINDE)
+    code = _order_with_request(client, requested_date="2026-12-20")
+    maker_says(client, "1")
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert (o["price_per_pair"], o["due_date"]) == (550, "2026-12-20")
+
+
+def test_new_columns_are_added_to_an_old_table(tmp_path):
+    from sqlalchemy import create_engine, inspect, text
+
+    from app.core import db
+
+    old = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    with old.begin() as conn:
+        conn.execute(text('CREATE TABLE "order" (id INTEGER PRIMARY KEY, code VARCHAR NOT NULL)'))
+    real, db.engine = db.engine, old
+    try:
+        db._add_missing_columns()
+    finally:
+        db.engine = real
+    cols = {c["name"] for c in inspect(old).get_columns("order")}
+    assert {"requested_price", "requested_date", "due_date"} <= cols
+
+
+def test_two_orders_waiting_needs_the_order_code(client):
+    h = login(client, SHINDE)
+    a, b = _order_with_request(client), _order_with_request(client)
+    reply = maker_says(client, "1")
+    assert f"{a}, {b}" in reply and f"1 {b}" in reply  # asks which one; nothing approved
+    assert client.get(f"/api/orders/{a}", headers=h).json()["status"] == "awaiting_maker"
+    maker_says(client, f"1 {b}")
+    assert client.get(f"/api/orders/{b}", headers=h).json()["status"] == "approved"
+    assert "मंजूर" in maker_says(client, "1")  # only one left: plain 1 is fine again
+    assert client.get(f"/api/orders/{a}", headers=h).json()["status"] == "approved"
+
+
+def test_shops_date_earlier_than_possible_is_not_accepted(client):
+    h = login(client, SHINDE)
+    code = _order_with_request(client, requested_price=520, requested_date="2026-11-17")
+    to_maker = next(m["body"] for m in client.get("/api/messages", headers=h).json() if m["phone"] == SHINDE)
+    assert "सर्वात लवकर शक्य" in to_maker
+    maker_says(client, "1")
+    o = client.get(f"/api/orders/{code}", headers=h).json()
+    assert (o["price_per_pair"], o["due_date"]) == (520, o["proposed_date"])  # price yes, impossible date no

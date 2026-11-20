@@ -4,6 +4,8 @@
 handy for testing the agents without a phone.
 """
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -30,6 +32,9 @@ class OrderIn(FeasibilityIn):
     city: str = ""
     language: str = ""
     source_text: str = ""
+    retailer_request: str = ""
+    requested_price: int | None = None
+    requested_date: date | None = None
 
 
 class SimulateIn(BaseModel):
@@ -62,6 +67,9 @@ def internal_create_order(body: OrderIn, session: Session = Depends(get_session)
         city=body.city,
         language=body.language,
         source_text=body.source_text,
+        retailer_request=body.retailer_request,
+        requested_price=body.requested_price,
+        requested_date=body.requested_date,
     )
     return {"order": order_view(session, o), "feasibility": f.as_dict()}
 

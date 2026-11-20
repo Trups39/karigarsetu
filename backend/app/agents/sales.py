@@ -5,6 +5,7 @@ all come from the deterministic services, and nothing is promised until the make
 """
 
 import logging
+from datetime import date
 
 from sqlmodel import Session, select
 
@@ -40,7 +41,8 @@ Rules:
   Then stop and wait: never call create_order in the same reply as the quote.
 - Call create_order only after the retailer answers that quote with a yes (yes, ok, हो, होय, हां, ठीक है).
   If they asked for a different price or delivery date, still use the quote but put their wish in
-  retailer_request; tell them the maker will decide (the price stays the list price until the maker agrees).
+  retailer_request, and also as numbers in requested_price_per_pair and/or requested_date (YYYY-MM-DD).
+  Tell them the maker will decide (the price stays the list price until the maker agrees).
   If they change sizes, quantity or design, check feasibility again and send a new quote.
   If they say no, don't create anything and tell them they can order again any time.
 - Every new request is a new order. Only mention an order number that create_order returned in this
@@ -107,6 +109,14 @@ TOOLS = [
                     "type": "string",
                     "description": "Optional: a different price or delivery date the retailer asked for, in plain words",
                 },
+                "requested_price_per_pair": {
+                    "type": "integer",
+                    "description": "Optional: the price per pair in rupees the retailer asked for, e.g. 550",
+                },
+                "requested_date": {
+                    "type": "string",
+                    "description": "Optional: the delivery date the retailer asked for, YYYY-MM-DD",
+                },
             },
             "required": ["maker_id", "product_code", "lines", "retailer_name", "city", "language"],
         },
@@ -143,6 +153,20 @@ def _lines(raw) -> dict[int, int]:
     for item in raw or []:
         out[int(item["size"])] = out.get(int(item["size"]), 0) + int(item["qty"])
     return out
+
+
+def _int_or_none(v) -> int | None:
+    try:
+        return int(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _date_or_none(v) -> date | None:
+    try:
+        return date.fromisoformat(str(v)) if v else None
+    except ValueError:
+        return None
 
 
 def run_tool(session: Session, name: str, args: dict, retailer_phone: str, turn: int = 0) -> dict:
@@ -182,6 +206,8 @@ def run_tool(session: Session, name: str, args: dict, retailer_phone: str, turn:
                 language=args.get("language", ""),
                 source_text=args.get("source_text", ""),
                 retailer_request=args.get("retailer_request", ""),
+                requested_price=_int_or_none(args.get("requested_price_per_pair")),
+                requested_date=_date_or_none(args.get("requested_date")),
             )
             _quotes.pop(retailer_phone, None)
             return {"order_code": order.code, "status": "sent to maker for approval", "feasibility": f.as_dict()}

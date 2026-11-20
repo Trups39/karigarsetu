@@ -81,6 +81,8 @@ class Order(SQLModel, table=True):
     status: OrderStatus = OrderStatus.awaiting_maker
     proposed_date: Optional[date] = None  # from the feasibility check
     due_date: Optional[date] = None  # agreed date (after approval or counter-offer)
+    requested_price: Optional[int] = None  # shop's wished price per pair; the maker's "1" accepts it
+    requested_date: Optional[date] = None  # shop's wished delivery date; the maker's "1" accepts it
     reserved_ready: int = 0  # pairs taken from stock on approval
     to_make: int = 0  # pairs booked into production on approval
     created_at: datetime = Field(default_factory=utcnow)

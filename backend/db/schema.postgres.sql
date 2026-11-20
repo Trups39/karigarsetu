@@ -136,6 +136,8 @@ CREATE TABLE "order" (
 	status orderstatus NOT NULL, 
 	proposed_date DATE, 
 	due_date DATE, 
+	requested_price INTEGER, 
+	requested_date DATE, 
 	reserved_ready INTEGER NOT NULL, 
 	to_make INTEGER NOT NULL, 
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
