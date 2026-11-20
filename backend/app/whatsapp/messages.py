@@ -77,21 +77,26 @@ TEXTS = {
         "English": (
             "New bulk order {code}\nRetailer: {retailer}{city}\n{product}, {total} pairs ({lines})\n"
             "Ready: {ready} · To make: {to_make}\n"
-            "Proposed delivery: {date} · {price}/pair · total {total_price}\n\n"
+            "Proposed delivery: {date} · {price}/pair · total {total_price}{request}\n\n"
             "Reply 1 to approve, 2 to reject, 3 to propose a change."
         ),
         "Marathi": (
             "नवीन बल्क ऑर्डर {code}\nदुकान: {retailer}{city}\n{product}, {total} जोड्या ({lines})\n"
             "तयार: {ready} · बनवायच्या: {to_make}\n"
-            "अंदाजे डिलिव्हरी: {date} · {price}/जोडी · एकूण {total_price}\n\n"
+            "अंदाजे डिलिव्हरी: {date} · {price}/जोडी · एकूण {total_price}{request}\n\n"
             "मंजुरीसाठी 1, नाकारण्यासाठी 2, बदल सुचवण्यासाठी 3 पाठवा."
         ),
         "Hindi": (
             "नया बल्क ऑर्डर {code}\nदुकान: {retailer}{city}\n{product}, {total} जोड़ी ({lines})\n"
             "तैयार: {ready} · बनानी हैं: {to_make}\n"
-            "अनुमानित डिलीवरी: {date} · {price}/जोड़ी · कुल {total_price}\n\n"
+            "अनुमानित डिलीवरी: {date} · {price}/जोड़ी · कुल {total_price}{request}\n\n"
             "मंज़ूरी के लिए 1, मना करने के लिए 2, बदलाव के लिए 3 भेजें."
         ),
+    },
+    "maker_shop_request": {
+        "English": "\nShop's request: {text}",
+        "Marathi": "\nदुकानाची विनंती: {text}",
+        "Hindi": "\nदुकान का अनुरोध: {text}",
     },
     "maker_approved": {
         "English": "Approved {code}. The retailer has been told. Delivery by {date}.",

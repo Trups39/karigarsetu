@@ -106,7 +106,11 @@ def create(
     city: str = "",
     language: str = "",
     source_text: str = "",
+    retailer_request: str = "",
 ) -> tuple[Order, feasibility.Feasibility]:
+    """retailer_request: what the shop asked for on top of the quote (e.g. a lower price or an earlier date).
+    It is only passed on to the maker; the order keeps the list price until the maker agrees."""
+    retailer_request = " ".join((retailer_request or "").split())[:200]
     product = session.exec(select(Product).where(Product.maker_id == maker_id, Product.code == product_code)).first()
     if not product:
         raise OrderError(f"Maker {maker_id} has no product '{product_code}'")
@@ -141,7 +145,8 @@ def create(
         "AI agent",
         "order.drafted",
         f"{product.name}, {f.total} pairs ({lines_text(lines)}) for {retailer_name}"
-        + (f" from {language} message: {source_text[:120]}" if source_text else ""),
+        + (f" from {language} message: {source_text[:120]}" if source_text else "")
+        + (f". Shop's request: {retailer_request}" if retailer_request else ""),
         maker_id,
         order.code,
     )
@@ -171,6 +176,7 @@ def create(
             date=i18n.fmt_date(f.earliest_date, ml),
             price=rupees(product.price_per_pair),
             total_price=rupees(f.total_price),
+            request=i18n.t("maker_shop_request", ml, text=retailer_request) if retailer_request else "",
         ),
         order.code,
     )

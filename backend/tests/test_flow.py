@@ -184,13 +184,23 @@ def test_agent_offline_fallback(client):
     assert "सहाय्यक सध्या बंद" in r.json()["reply"]  # known Marathi shop
 
 
-def test_agent_tool_loop_creates_order(client, monkeypatch):
-    """Fake Claude: asks for feasibility, then creates the order, then replies."""
+def test_agent_quotes_first_and_creates_the_order_only_after_the_shops_yes(client, monkeypatch):
+    """Fake Claude. Message 1: feasibility, then it tries to create the order straight away (the code refuses)
+    and sends the quote. Message 2 ("हो"): the order is created with the shop's price request for the maker."""
     from types import SimpleNamespace as NS
 
     import anthropic
 
     lines = [{"size": 7, "qty": 15}, {"size": 8, "qty": 20}, {"size": 9, "qty": 15}]
+    order_args = {
+        "maker_id": 1,
+        "product_code": "classic",
+        "lines": lines,
+        "retailer_name": "Pune Footwear House",
+        "city": "Pune",
+        "language": "Marathi",
+        "source_text": "मला क्लासिक 50 जोड्या हव्यात",
+    }
 
     def tool(name, args, i):
         b = NS(type="tool_use", id=f"t{i}", name=name, input=args)
@@ -203,27 +213,17 @@ def test_agent_tool_loop_creates_order(client, monkeypatch):
         return b
 
     script = [
+        # message 1
         NS(
             stop_reason="tool_use",
             content=[tool("check_feasibility", {"maker_id": 1, "product_code": "classic", "lines": lines}, 1)],
         ),
+        NS(stop_reason="tool_use", content=[tool("create_order", order_args, 2)]),  # too early: refused
+        NS(stop_reason="end_turn", content=[text("50 जोड्या: 20 तयार, 30 बनवायच्या. ₹27,500. मेकरकडे पाठवू? हो / नाही")]),
+        # message 2: the shop says yes and asks for a lower price
         NS(
             stop_reason="tool_use",
-            content=[
-                tool(
-                    "create_order",
-                    {
-                        "maker_id": 1,
-                        "product_code": "classic",
-                        "lines": lines,
-                        "retailer_name": "Pune Footwear House",
-                        "city": "Pune",
-                        "language": "Marathi",
-                        "source_text": "मला क्लासिक 50 जोड्या हव्यात",
-                    },
-                    2,
-                )
-            ],
+            content=[tool("create_order", {**order_args, "retailer_request": "₹520 per pair if possible"}, 3)],
         ),
         NS(stop_reason="end_turn", content=[text("ऑर्डर KS-1041 मेकरकडे मंजुरीसाठी पाठवली आहे.")]),
     ]
@@ -241,15 +241,43 @@ def test_agent_tool_loop_creates_order(client, monkeypatch):
 
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "fake")
     monkeypatch.setattr(anthropic, "Anthropic", FakeClient)
+    h = login(client, SHINDE)
 
     r = client.post(
         "/internal/simulate-message", json={"phone": RETAILER, "body": "मला क्लासिक 50 जोड्या हव्यात"}, headers=INTERNAL
     )
-    assert "KS-1041" in r.json()["reply"]
-    assert '"ready": 20' in seen_tool_results[0] and "KS-1041" in seen_tool_results[1]
-    h = login(client, SHINDE)
-    orders_ = client.get("/api/orders", headers=h).json()
-    assert orders_[0]["code"] == "KS-1041" and orders_[0]["retailer_phone"] == RETAILER
+    assert "हो / नाही" in r.json()["reply"]
+    assert '"ready": 20' in seen_tool_results[0] and "Not created" in seen_tool_results[1]
+    assert client.get("/api/orders", headers=h).json() == []  # nothing sent to the maker yet
+
+    r = client.post(
+        "/internal/simulate-message", json={"phone": RETAILER, "body": "हो, 520 ला जमेल का?"}, headers=INTERNAL
+    )
+    assert "KS-1041" in r.json()["reply"] and "KS-1041" in seen_tool_results[2]
+    o = client.get("/api/orders", headers=h).json()[0]
+    assert (o["code"], o["retailer_phone"], o["price_per_pair"]) == ("KS-1041", RETAILER, 550)  # list price kept
+    to_maker = client.get("/api/messages", headers=h).json()
+    assert any("₹520 per pair if possible" in m["body"] and "KS-1041" in m["body"] for m in to_maker)
+
+
+def test_create_order_needs_a_matching_quote_from_an_earlier_message():
+    from app.agents import sales
+
+    args = {"maker_id": 1, "product_code": "classic", "lines": [{"size": 8, "qty": 30}]}
+    sales._quotes.clear()
+    assert sales.run_tool(
+        None, "create_order", {**args, "retailer_name": "X", "city": "Y", "language": "English"}, "91", 2
+    ) == {"error": sales.NEEDS_YES}
+    sales._quotes["91"] = (sales._quote_key(args), 1)
+    other = {**args, "lines": [{"size": 8, "qty": 40}]}  # the shop changed the quantity: needs a new quote
+    assert sales.run_tool(
+        None, "create_order", {**other, "retailer_name": "X", "city": "Y", "language": "English"}, "91", 2
+    ) == {"error": sales.NEEDS_YES}
+    sales._quotes["91"] = (sales._quote_key(args), 2)  # quote sent in this same message
+    assert sales.run_tool(
+        None, "create_order", {**args, "retailer_name": "X", "city": "Y", "language": "English"}, "91", 2
+    ) == {"error": sales.NEEDS_YES}
+    sales._quotes.clear()
 
 
 def test_website_and_demo_endpoints(client):

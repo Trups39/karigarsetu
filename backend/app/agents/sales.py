@@ -33,10 +33,19 @@ Rules:
 - Use list_products to see designs, prices and sizes. Never invent a design, price or size.
 - Use check_feasibility before telling the retailer anything about stock or dates.
 - Never promise a price, quantity or delivery date as final. Say the maker will confirm.
-- Every new request is a new order: call create_order again. Only mention an order number that
-  create_order returned in this same reply; never reuse an order number from earlier in the chat.
-- When you have everything, summarise the order, then call create_order. Tell the retailer the order
-  number and that the maker has been asked to approve it.
+- Quote first, order second. When you have everything, call check_feasibility and send the retailer a
+  short quote: maker, design, pairs per size, how many are ready now and how many must be made, price
+  per pair, total, and the earliest delivery date. End with: reply YES to send it to the maker, NO to
+  cancel, or tell me what to change (sizes, quantity, delivery date, or the price you'd like).
+  Then stop and wait: never call create_order in the same reply as the quote.
+- Call create_order only after the retailer answers that quote with a yes (yes, ok, हो, होय, हां, ठीक है).
+  If they asked for a different price or delivery date, still use the quote but put their wish in
+  retailer_request; tell them the maker will decide (the price stays the list price until the maker agrees).
+  If they change sizes, quantity or design, check feasibility again and send a new quote.
+  If they say no, don't create anything and tell them they can order again any time.
+- Every new request is a new order. Only mention an order number that create_order returned in this
+  same reply; never reuse an order number from earlier in the chat.
+- After create_order, tell the retailer the order number and that the maker has been asked to approve it.
 - Use get_order_status if they ask about an existing order.
 
 Makers on KarigarSetu:
@@ -73,7 +82,10 @@ TOOLS = [
     },
     {
         "name": "create_order",
-        "description": "Create the order and send it to the maker for approval. Only call once all details are known.",
+        "description": (
+            "Create the order and send it to the maker for approval. Only after the retailer said yes to the "
+            "quote you sent in an earlier message, with exactly the same maker, design and sizes."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
@@ -91,6 +103,10 @@ TOOLS = [
                 "city": {"type": "string"},
                 "language": {"type": "string", "enum": ["Marathi", "Hindi", "English"]},
                 "source_text": {"type": "string", "description": "The retailer's original order message"},
+                "retailer_request": {
+                    "type": "string",
+                    "description": "Optional: a different price or delivery date the retailer asked for, in plain words",
+                },
             },
             "required": ["maker_id", "product_code", "lines", "retailer_name", "city", "language"],
         },
@@ -107,6 +123,21 @@ TOOLS = [
 ]
 
 
+# Quotes the retailer has seen: phone -> (maker_id, product_code, sizes) and the message number it was sent in.
+# create_order is only allowed for a quote sent in an EARLIER message, so the shop always gets to say YES first.
+_quotes: dict[str, tuple[tuple, int]] = {}
+_turns: dict[str, int] = {}
+
+NEEDS_YES = (
+    "Not created. First send the retailer the quote (pairs per size, ready vs to make, price, total, earliest "
+    "date) and ask them to reply YES. Create the order only when they answer yes in their next message."
+)
+
+
+def _quote_key(args: dict) -> tuple:
+    return (int(args["maker_id"]), str(args["product_code"]), tuple(sorted(_lines(args["lines"]).items())))
+
+
 def _lines(raw) -> dict[int, int]:
     out: dict[int, int] = {}
     for item in raw or []:
@@ -114,8 +145,9 @@ def _lines(raw) -> dict[int, int]:
     return out
 
 
-def run_tool(session: Session, name: str, args: dict, retailer_phone: str) -> dict:
-    """Execute one tool call against the real services. Errors go back to Claude as data."""
+def run_tool(session: Session, name: str, args: dict, retailer_phone: str, turn: int = 0) -> dict:
+    """Execute one tool call against the real services. Errors go back to Claude as data.
+    turn = the number of this retailer message (see _quotes)."""
     try:
         if name == "list_products":
             ps = session.exec(select(Product).where(Product.maker_id == args["maker_id"]).order_by(Product.id)).all()
@@ -131,8 +163,14 @@ def run_tool(session: Session, name: str, args: dict, retailer_phone: str) -> di
             ).first()
             if not p:
                 return {"error": "Unknown product"}
-            return feasibility.check(session, p, _lines(args["lines"])).as_dict()
+            f = feasibility.check(session, p, _lines(args["lines"]))
+            if not f.problems and f.total:
+                _quotes[retailer_phone] = (_quote_key(args), turn)
+            return f.as_dict()
         if name == "create_order":
+            quote = _quotes.get(retailer_phone)
+            if not quote or quote[0] != _quote_key(args) or quote[1] >= turn:
+                return {"error": NEEDS_YES}
             order, f = orders.create(
                 session,
                 maker_id=args["maker_id"],
@@ -143,7 +181,9 @@ def run_tool(session: Session, name: str, args: dict, retailer_phone: str) -> di
                 city=args.get("city", ""),
                 language=args.get("language", ""),
                 source_text=args.get("source_text", ""),
+                retailer_request=args.get("retailer_request", ""),
             )
+            _quotes.pop(retailer_phone, None)
             return {"order_code": order.code, "status": "sent to maker for approval", "feasibility": f.as_dict()}
         if name == "get_order_status":
             o = session.exec(
@@ -166,6 +206,7 @@ def handle_retailer_message(session: Session, phone: str, text: str) -> str:
     """Sales Agent: retailers ordering on WhatsApp."""
     from ..whatsapp import messages as i18n
 
+    _turns[phone] = turn = _turns.get(phone, 0) + 1
     known = session.exec(select(Retailer).where(Retailer.phone == phone)).first()
     lang = i18n.norm(known.language) if known and known.language else i18n.detect(text)
     if not config.ANTHROPIC_API_KEY:
@@ -194,6 +235,6 @@ def handle_retailer_message(session: Session, phone: str, text: str) -> str:
         text,
         system,
         TOOLS,
-        execute=lambda name, args: run_tool(session, name, args, phone),
+        execute=lambda name, args: run_tool(session, name, args, phone, turn),
         give_up=i18n.t("retailer_agent_gave_up", lang),
     )

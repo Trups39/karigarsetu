@@ -6,7 +6,7 @@ not only the reply text.
 
 ```powershell
 cd E:\karigarsetu\backend
-python -m agent_eval.run            # all scenarios (about 26; takes a few minutes)
+python -m agent_eval.run            # all scenarios (29; takes a few minutes)
 python -m agent_eval.run S1 S7      # only some
 python -m agent_eval.run --list     # list them
 ```

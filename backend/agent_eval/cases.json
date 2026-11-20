@@ -31,7 +31,7 @@
   "scenarios": [
     {
       "id": "S1",
-      "name": "Marathi order, full flow: sizes, counter-offer, YES, production, stock, status",
+      "name": "Marathi order, full flow: sizes, quote, shop's YES, counter-offer, YES, production, stock, status",
       "steps": [
         {
           "from": "shop",
@@ -44,6 +44,13 @@
         {
           "from": "shop",
           "say": "7 ला 15, 8 ला 20, 9 ला 15",
+          "expect": {
+            "new_order": false
+          }
+        },
+        {
+          "from": "shop",
+          "say": "हो, पाठवा",
           "expect": {
             "new_order": true,
             "order": {
@@ -140,11 +147,19 @@
     },
     {
       "id": "S2",
-      "name": "Hindi order in one message",
+      "name": "Hindi order in one message, then the shop confirms the quote",
       "steps": [
         {
           "from": "hindi_shop",
           "say": "मुझे Kolhapur Chappal Kendra से Kolhapuri Classic 30 जोड़ी चाहिए, साइज 8 में 15 और साइज 9 में 15",
+          "expect": {
+            "new_order": false,
+            "language": "Hindi"
+          }
+        },
+        {
+          "from": "hindi_shop",
+          "say": "हां, भेज दो",
           "expect": {
             "new_order": true,
             "order": {
@@ -152,18 +167,28 @@
               "design": "classic",
               "total_pairs": 30
             },
-            "language": "Hindi"
+            "reply_any": [
+              "{last}"
+            ]
           }
         }
       ]
     },
     {
       "id": "S3",
-      "name": "English order in one message",
+      "name": "English order in one message, then the shop confirms the quote",
       "steps": [
         {
           "from": "english_shop",
           "say": "Hi, we need 40 pairs of Paytan from Kolhapur Chappal Kendra, all size 8.",
+          "expect": {
+            "new_order": false,
+            "language": "English"
+          }
+        },
+        {
+          "from": "english_shop",
+          "say": "Yes, send it",
           "expect": {
             "new_order": true,
             "order": {
@@ -172,7 +197,57 @@
               "total_pairs": 40,
               "price_per_pair": 480
             },
-            "language": "English"
+            "reply_any": [
+              "{last}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "S3b",
+      "name": "Shop confirms the quote but asks for a lower price: order at list price, request goes to the maker",
+      "steps": [
+        {
+          "from": "english_shop",
+          "say": "We need 40 pairs of Paytan from Kolhapur Chappal Kendra, all size 8.",
+          "expect": {
+            "new_order": false
+          }
+        },
+        {
+          "from": "english_shop",
+          "say": "Yes, but can you ask the maker for Rs 450 a pair?",
+          "expect": {
+            "new_order": true,
+            "order": {
+              "maker": "Kolhapur Chappal Kendra",
+              "design": "paytan",
+              "total_pairs": 40,
+              "price_per_pair": 480,
+              "status": "awaiting_maker"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "S3c",
+      "name": "Shop says NO to the quote: nothing is created",
+      "steps": [
+        {
+          "from": "english_shop",
+          "say": "We need 40 pairs of Paytan from Kolhapur Chappal Kendra, all size 8.",
+          "expect": {
+            "new_order": false
+          }
+        },
+        {
+          "from": "english_shop",
+          "say": "No, cancel it. Too expensive for now.",
+          "expect": {
+            "new_order": false,
+            "orders_unchanged": true
           }
         }
       ]
