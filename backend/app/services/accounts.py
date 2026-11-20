@@ -128,6 +128,59 @@ def reject_account(session: Session, a: SupplierAccount) -> SupplierAccount:
     return a
 
 
+# ---------- emails about an account (to the supplier and to the KarigarSetu team) ----------
+
+SAMPLE_EMAIL_DOMAIN = "@sample.karigarsetu.in"  # the sample suppliers' made-up addresses: never emailed
+
+
+def account_emails(kind: str, a: SupplierAccount) -> list[tuple[Optional[str], str, str]]:
+    """Emails to send when an account is signed up, approved or rejected: (to, subject, body).
+    to=None means the team mailbox (CONTACT_TO). Plain text, sent in the background by the API."""
+    site, support = config.PUBLIC_URL, config.SUPPORT_EMAIL
+    details = (
+        f"Name:     {a.name}\nBusiness: {a.business_name}\nCraft:    {a.craft}\nTown:     {a.town}\n"
+        f"WhatsApp: +{a.phone}\nEmail:    {a.email}\n"
+    )
+    sign = f"\n\nTeam KarigarSetu\n{site}\n"
+    if kind == "signup":
+        team = (
+            f"New supplier waiting for approval: {a.business_name}",
+            f"{a.name} signed up as a supplier on KarigarSetu.\n\n{details}\nApprove or reject: {site}/admin\n",
+        )
+        maker = (
+            "We received your KarigarSetu application",
+            f"Namaste {a.name},\n\nThank you for applying to sell on KarigarSetu as {a.business_name}. "
+            "Our team will review your details soon. You'll get an email and a WhatsApp message "
+            f"on +{a.phone} once your account is approved.\n\nQuestions? Write to {support}.{sign}",
+        )
+    elif kind == "approved":
+        team = (f"Supplier approved: {a.business_name}", f"This supplier was approved on /admin.\n\n{details}")
+        maker = (
+            "Your KarigarSetu account is approved",
+            f"Namaste {a.name},\n\nGood news: {a.business_name} is approved on KarigarSetu.\n\n"
+            f"Log in at {site} (Supplier login) with {a.email} and your password, then:\n"
+            "1. Add your designs and prices (Products)\n"
+            "2. Add the pairs you have ready (Stock)\n\n"
+            "Shops can then order from you on WhatsApp, and you approve every order with one reply."
+            f"\n\nQuestions? Write to {support}.{sign}",
+        )
+    elif kind == "rejected":
+        team = (f"Supplier rejected: {a.business_name}", f"This supplier was rejected on /admin.\n\n{details}")
+        maker = (
+            "About your KarigarSetu application",
+            f"Namaste {a.name},\n\nThank you for applying to KarigarSetu as {a.business_name}. "
+            "We couldn't approve your application this time.\n\n"
+            f"If you think this is a mistake or would like to share more details, write to {support} "
+            f"and we'll take another look.{sign}",
+        )
+    else:
+        raise ValueError(kind)
+    out: list[tuple[Optional[str], str, str]] = [(None, *team)]
+    if a.email and not a.email.endswith(SAMPLE_EMAIL_DOMAIN):
+        out.append((a.email, *maker))
+    return out
+
+
 # ---------- keep accounts linked to their maker (after a reset, the makers are recreated) ----------
 
 

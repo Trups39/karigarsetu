@@ -1,4 +1,4 @@
-"""Public contact form -> contact@karigarsetu.co.in through the Titan mailbox (GoDaddy email).
+"""Public contact form -> contact@karigarsetu.co.in through our GoDaddy Professional Email mailbox.
 
 Every message is also saved in the contact_message table, so nothing is lost if email is down.
 Spam protection: a hidden "website" field (bots fill it in), basic checks, and a limit per address.

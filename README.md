@@ -6,7 +6,7 @@
 
 KarigarSetu ("bridge to the artisan") lets shops order handmade Kolhapuri chappals in bulk **directly from the artisans who make them, on WhatsApp, in Marathi, Hindi or English**. Two Claude agents take care of the conversation. Plain code takes care of stock, prices and delivery dates. The artisan always has the final say.
 
-Built for the **Claude × GoDaddy hackathon** (agentic business solutions for small businesses), running on GoDaddy: domain `karigarsetu.co.in`, Titan email and VPS hosting.
+Built for the **Claude × GoDaddy hackathon** (agentic business solutions for small businesses), running on GoDaddy: domain `karigarsetu.co.in`, GoDaddy Professional Email and VPS hosting.
 
 ## Try it (for judges)
 
@@ -22,8 +22,8 @@ Built for the **Claude × GoDaddy hackathon** (agentic business solutions for sm
 ### 5-minute test on the website (no setup needed)
 
 1. **Home page:** see the two sample artisans (Kolhapur Chappal Kendra, Patil Chappal Udyog), their designs and prices. "Order on WhatsApp" opens a chat with the bot, with the maker's name already typed.
-2. **Contact form:** send a message. It's delivered to the `contact@karigarsetu.co.in` Titan mailbox. The password is only in the server's `.env`, never in this repo.
-3. **Become a supplier:** sign up as an artisan. Your account stays **pending** until the KarigarSetu team approves it at `/admin`, so nobody can sell without being checked.
+2. **Contact form:** send a message. It's delivered to the `contact@karigarsetu.co.in` GoDaddy mailbox. The password is only in the server's `.env`, never in this repo.
+3. **Become a supplier:** sign up as an artisan. You get a "we received your application" email, the team gets a "new supplier" alert, and your account stays **pending** until it is approved at `/admin`, so nobody can sell without being checked. Approval or rejection is emailed to you (and approval also sent on WhatsApp).
 4. **HTTPS and security:** `http://` and `www.` redirect to `https://karigarsetu.co.in`; `/docs` asks for an admin login.
 
 ### WhatsApp test (once your number is registered)
@@ -93,7 +93,7 @@ flowchart LR
 | **Order flow** | Awaiting maker → approved / counter-offer / rejected → in production → ready → delivered, with an audit log of every step |
 | **Supplier onboarding** | "Become a supplier" sign-up → admin approval at `/admin` → email + password login → add designs and stock |
 | **Maker dashboard** | Overview, orders (approve, reject, counter-offer, move forward), stock by size, capacity, designs and prices, audit log |
-| **Contact form** | Website form → `contact@karigarsetu.co.in` through the Titan mailbox; the team is also emailed when a new supplier signs up |
+| **Email (GoDaddy)** | Contact form → `contact@karigarsetu.co.in`. Supplier emails: application received, approved, rejected; the team gets an alert for each |
 | **Security** | bcrypt passwords, hashed session tokens, lockout after 5 wrong passwords, admin-only `/docs`, signed WhatsApp webhooks, the same field checks on page and server, no secrets in the repo |
 | **Tests** | 105 unit tests (SQLite + PostgreSQL) and 27 agent scenarios run against the real Claude |
 
@@ -106,7 +106,7 @@ flowchart LR
 | Database | PostgreSQL (SQLite for local development and tests) |
 | Frontend | Plain HTML, CSS and JavaScript, served by the backend |
 | WhatsApp | Meta WhatsApp Cloud API (webhook with HMAC-SHA256 signature check) |
-| GoDaddy | Domain `karigarsetu.co.in`, DNS, Titan email (contact form and alerts), VPS hosting |
+| GoDaddy | Domain `karigarsetu.co.in`, DNS, Professional Email (contact form and supplier emails), VPS hosting |
 
 ## Architecture
 
@@ -147,7 +147,7 @@ flowchart LR
   subgraph X["Third-party"]
     CL["Anthropic<br/>Claude API"]
     MOUT["Meta Graph API<br/>send message"]
-    TI["GoDaddy Titan<br/>SMTP"]
+    TI["GoDaddy Professional<br/>Email · SMTP"]
   end
   R -->|sends message| META
   M -->|sends message| META
@@ -187,7 +187,7 @@ flowchart LR
 1. **Retailer order:** the retailer sends a WhatsApp message. Meta POSTs it to the webhook, which checks the HMAC signature and hands it to the Sales agent. Claude works out what the retailer wants and calls tools. Orders + feasibility checks stock and capacity and writes the order to PostgreSQL. Notify sends the reply back through the Meta Graph API.
 2. **Maker update:** the maker's message goes the same way to the Operations agent. Approvals and stock changes go through the Orders and Inventory services, never straight from the AI.
 3. **Web:** suppliers and the admin log in over HTTPS through Caddy, then use the dashboard (orders, stock, designs) and admin approval through the REST API.
-4. **Contact and alerts:** the contact form and new-supplier sign-ups trigger the mailer, which sends email through GoDaddy Titan SMTP.
+4. **Contact and supplier emails:** the contact form, supplier sign-ups, approvals and rejections trigger the mailer, which emails the team and the supplier through GoDaddy Professional Email (SMTP).
 
 The MVP has no CDN, cache or message queue: webhooks are handled inside the request, and PostgreSQL transactions stop the same stock being sold twice. A queue in front of the agents and Redis for sessions are the next steps for scaling.
 
@@ -252,7 +252,7 @@ karigarsetu/
     │       ├── accounts.py         passwords, admin sessions, supplier approval
     │       ├── validation.py       field rules shared by every form (the page uses the same rules)
     │       ├── notify.py           outgoing WhatsApp messages (Meta)
-    │       ├── mailer.py           outgoing email (Titan SMTP)
+    │       ├── mailer.py           outgoing email (GoDaddy SMTP)
     │       └── audit.py            audit log
     │
     ├── db/
@@ -308,7 +308,7 @@ All settings are listed with comments in `.env.example`. The main ones:
 | `WHATSAPP_PROVIDER=meta`, `META_WHATSAPP_TOKEN`, `META_PHONE_NUMBER_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN` | Meta WhatsApp Cloud API |
 | `BOT_WHATSAPP_NUMBER` | The bot's number; "Order on WhatsApp" buttons open it |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Login for `/admin` (also locks `/docs`) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `CONTACT_TO` | Titan email for the contact form and alerts |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `CONTACT_TO` | GoDaddy email for the contact form and supplier emails (`smtpout.secureserver.net`, 465) |
 | `PUBLIC_URL`, `COOKIE_SECURE`, `INTERNAL_API_KEY` | Public address, HTTPS-only cookies, key for internal endpoints |
 | `SAMPLE_MAKERS`, `SEED_DEMO_ORDERS`, `DEMO_RETAILER_PHONE`, `DEMO_MODE`, `DEMO_TODAY` | Sample data and demo options |
 
@@ -353,7 +353,7 @@ The test number can only reply to the registered phones, and its temporary token
 | Who | Endpoint | Purpose |
 |---|---|---|
 | Public | `GET /public/makers`, `GET /public/info` | Home page makers (with WhatsApp links) and contact details |
-| Public | `POST /api/contact` | Contact form → Titan email |
+| Public | `POST /api/contact` | Contact form → GoDaddy email |
 | Public | `POST /auth/signup` | Supplier sign-up (pending until approved) |
 | Maker | `POST /auth/login`, `POST /auth/logout` | Email + password login (Bearer token) |
 | Maker | `GET /api/overview`, `GET /api/orders`, `GET /api/orders/{code}` | Dashboard data |

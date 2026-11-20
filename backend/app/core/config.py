@@ -40,8 +40,8 @@ ADMIN_EMAIL = _env("ADMIN_EMAIL", "").strip().lower()  # admin logs in with this
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "")
 SUPPORT_EMAIL = _env("SUPPORT_EMAIL", "contact@karigarsetu.co.in")
 
-# ---------- Email on our GoDaddy domain (Titan): contact form + new-supplier alerts ----------
-SMTP_HOST = _env("SMTP_HOST", "smtp.titan.email")
+# ---------- Email on our GoDaddy domain (GoDaddy Professional Email): contact form + supplier emails ----------
+SMTP_HOST = _env("SMTP_HOST", "smtpout.secureserver.net")
 SMTP_PORT = int(_env("SMTP_PORT", "465"))  # 465 = SSL, 587 = STARTTLS
 SMTP_USERNAME = _env("SMTP_USERNAME", "")  # the mailbox, e.g. contact@karigarsetu.co.in
 SMTP_PASSWORD = _env("SMTP_PASSWORD", "")  # only in backend/.env, never in the repo

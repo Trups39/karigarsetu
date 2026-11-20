@@ -13,7 +13,15 @@ from ..core.models import AccountStatus, Maker, SupplierAccount, utcnow
 from ..core.security import end_session, issue_token, naive_utc, now_utc
 from ..services import audit, mailer
 from ..services import validation as V
-from ..services.accounts import PENDING, account_view, dummy_hash, end_admin_session, hash_password, password_ok
+from ..services.accounts import (
+    PENDING,
+    account_emails,
+    account_view,
+    dummy_hash,
+    end_admin_session,
+    hash_password,
+    password_ok,
+)
 
 router = APIRouter(tags=["supplier login"])
 
@@ -57,15 +65,9 @@ def signup(body: SignupIn, background: BackgroundTasks, session: Session = Depen
     session.commit()
     audit.log(session, "System", "account.signup", f"{a.business_name} ({a.email}) signed up, waiting for approval")
     session.commit()
-    # Tell the KarigarSetu team by email (Titan mailbox on our domain); never blocks the sign-up.
-    background.add_task(
-        mailer.send_quietly,
-        f"New supplier waiting for approval: {a.business_name}",
-        f"{a.name} signed up as a supplier on KarigarSetu.\n\n"
-        f"Business: {a.business_name}\nCraft:    {a.craft}\nTown:     {a.town}\n"
-        f"WhatsApp: +{a.phone}\nEmail:    {a.email}\n\n"
-        f"Approve or reject: {config.PUBLIC_URL}/admin\n",
-    )
+    # Email the KarigarSetu team and the supplier; never blocks or fails the sign-up.
+    for to, subject, text in account_emails("signup", a):
+        background.add_task(mailer.send_quietly, subject, text, to=to)
     return {"status": a.status, "message": PENDING}
 
 

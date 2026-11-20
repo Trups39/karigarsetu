@@ -17,7 +17,7 @@ The steps below are for Ubuntu 22.04 / 24.04. Run them over SSH: `ssh root@<VPS-
 | A    | www  | `<VPS-IP>` |
 
 Delete any other A record for `@` (for example GoDaddy's "Parked"). **Don't change the MX/TXT records:
-Titan email needs them.** Check:  `nslookup karigarsetu.co.in`  should show the VPS IP.
+GoDaddy email needs them.** Check:  `nslookup karigarsetu.co.in`  should show the VPS IP.
 
 ## 2. Install Docker and open the firewall
 
@@ -55,7 +55,7 @@ Fill in at least these values:
 | `INTERNAL_API_KEY` | new random value (`openssl rand -hex 24`) |
 | `PUBLIC_URL` | `https://karigarsetu.co.in` |
 | `COOKIE_SECURE` | `true` |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `CONTACT_TO` | Titan mailbox (`smtp.titan.email`, `465`) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `CONTACT_TO` | GoDaddy Professional Email (`smtpout.secureserver.net`, `465`). Write any `$` in a value as `$$` |
 | `META_WHATSAPP_TOKEN` / `META_PHONE_NUMBER_ID` / `META_APP_SECRET` | from the Meta app |
 | `META_VERIFY_TOKEN` | new random value; type the same one in Meta (step 6) |
 | `BOT_WHATSAPP_NUMBER` | `15551567876` |
@@ -82,7 +82,7 @@ If it doesn't load: `docker compose logs caddy` (usually DNS not pointing at the
 ## 7. Check before submitting
 
 - [ ] https://karigarsetu.co.in loads with the padlock; http:// and www. redirect to it
-- [ ] Contact form → email arrives in the Titan mailbox
+- [ ] Contact form → email arrives in the contact@ mailbox
 - [ ] Sign up as a supplier → approve at https://karigarsetu.co.in/admin → log in → dashboard
 - [ ] WhatsApp message to the bot gets a reply
 - [ ] https://karigarsetu.co.in/docs asks for the admin login

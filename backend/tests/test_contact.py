@@ -1,4 +1,4 @@
-"""Website contact form (Titan email), new-supplier alert email, and the home page's maker list."""
+"""Website contact form (GoDaddy email), supplier account emails, and the home page's maker list."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,7 +29,7 @@ def client():
 
 @pytest.fixture()
 def sent(monkeypatch):
-    """Fake the Titan SMTP server: collect the emails instead of sending them."""
+    """Fake the GoDaddy SMTP server: collect the emails instead of sending them."""
     mails = []
 
     class FakeSMTP:
@@ -111,24 +111,92 @@ def test_contact_form_email_failure_is_reported(client, monkeypatch, sent):
     assert r.status_code == 502 and "contact@karigarsetu.co.in" in r.json()["detail"]
 
 
-def test_new_supplier_signup_emails_the_team(client, sent, monkeypatch):
-    monkeypatch.setattr(config, "PUBLIC_URL", "https://karigarsetu.co.in")
-    r = client.post(
-        "/auth/signup",
-        json={
-            "name": "Asha",
-            "business_name": "Asha Chappals",
-            "craft": "Kolhapuri",
-            "town": "Kolhapur",
-            "phone": "9822012345",
-            "email": "asha@example.com",
-            "password": "goodpass123",
-            "confirm_password": "goodpass123",
-        },
+SIGNUP = {
+    "name": "Asha",
+    "business_name": "Asha Chappals",
+    "craft": "Kolhapuri",
+    "town": "Kolhapur",
+    "phone": "9822012345",
+    "email": "asha@example.com",
+    "password": "goodpass123",
+    "confirm_password": "goodpass123",
+}
+ADMIN = {"X-Requested-With": "KarigarSetu"}
+
+
+def by_to(sent):
+    return {m["To"]: m for m in sent}
+
+
+def admin_client(client):
+    assert (
+        client.post(
+            "/api/admin/login", json={"email": "admin@karigarsetu.co.in", "password": "test-admin"}, headers=ADMIN
+        ).status_code
+        == 200
     )
-    assert r.status_code == 201
-    assert len(sent) == 1 and "Asha Chappals" in sent[0]["Subject"]
-    assert "https://karigarsetu.co.in/admin" in sent[0].get_content()
+
+
+def new_account_id():
+    from app.core.models import SupplierAccount
+
+    with Session(engine) as s:
+        return s.exec(select(SupplierAccount).where(SupplierAccount.email == "asha@example.com")).one().id
+
+
+def test_new_supplier_signup_emails_the_team_and_the_supplier(client, sent, monkeypatch):
+    monkeypatch.setattr(config, "PUBLIC_URL", "https://karigarsetu.co.in")
+    assert client.post("/auth/signup", json=SIGNUP).status_code == 201
+    mails = by_to(sent)
+    assert set(mails) == {"contact@karigarsetu.co.in", "asha@example.com"}
+    team = mails["contact@karigarsetu.co.in"]
+    assert "Asha Chappals" in team["Subject"] and "https://karigarsetu.co.in/admin" in team.get_content()
+    assert mails["asha@example.com"]["Subject"] == "We received your KarigarSetu application"
+
+
+def test_approve_and_reject_email_the_supplier_and_the_team_once(client, sent, monkeypatch):
+    monkeypatch.setattr(config, "PUBLIC_URL", "https://karigarsetu.co.in")
+    client.post("/auth/signup", json=SIGNUP)
+    admin_client(client)
+    aid = new_account_id()
+
+    sent.clear()
+    assert client.post(f"/api/admin/accounts/{aid}/approve", headers=ADMIN).status_code == 200
+    mails = by_to(sent)
+    assert mails["asha@example.com"]["Subject"] == "Your KarigarSetu account is approved"
+    assert "https://karigarsetu.co.in" in mails["asha@example.com"].get_content()
+    assert mails["contact@karigarsetu.co.in"]["Subject"] == "Supplier approved: Asha Chappals"
+
+    sent.clear()  # approving again changes nothing, so no new emails
+    client.post(f"/api/admin/accounts/{aid}/approve", headers=ADMIN)
+    assert sent == []
+
+    assert client.post(f"/api/admin/accounts/{aid}/reject", headers=ADMIN).status_code == 200
+    mails = by_to(sent)
+    assert mails["asha@example.com"]["Subject"] == "About your KarigarSetu application"
+    assert mails["contact@karigarsetu.co.in"]["Subject"] == "Supplier rejected: Asha Chappals"
+
+
+def test_sample_suppliers_are_never_emailed(client, sent):
+    from app.core.models import SupplierAccount
+
+    admin_client(client)
+    with Session(engine) as s:
+        sample = s.exec(select(SupplierAccount).where(SupplierAccount.email.endswith("@sample.karigarsetu.in"))).first()
+    client.post(f"/api/admin/accounts/{sample.id}/reject", headers=ADMIN)
+    assert [m["To"] for m in sent] == ["contact@karigarsetu.co.in"]
+
+
+def test_email_problems_never_block_sign_up_or_approval(client, monkeypatch):
+    def broken(*a, **kw):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(config, "SMTP_USERNAME", "contact@karigarsetu.co.in")
+    monkeypatch.setattr(config, "SMTP_PASSWORD", "secret")
+    monkeypatch.setattr(mailer.smtplib, "SMTP_SSL", broken)
+    assert client.post("/auth/signup", json=SIGNUP).status_code == 201
+    admin_client(client)
+    assert client.post(f"/api/admin/accounts/{new_account_id()}/approve", headers=ADMIN).status_code == 200
 
 
 def test_public_makers_use_the_bot_number(client, monkeypatch):

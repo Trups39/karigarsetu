@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -19,7 +19,16 @@ from ..core import config
 from ..core.db import get_session
 from ..core.models import AccountStatus, AdminSession, SupplierAccount
 from ..core.security import token_hash
-from ..services.accounts import ADMIN_COOKIE, account_view, approve_account, end_admin_session, is_admin, reject_account
+from ..services import mailer
+from ..services.accounts import (
+    ADMIN_COOKIE,
+    account_emails,
+    account_view,
+    approve_account,
+    end_admin_session,
+    is_admin,
+    reject_account,
+)
 
 router = APIRouter()
 ADMIN_PAGE = Path(__file__).resolve().parents[3] / "frontend" / "admin.html"  # karigarsetu/frontend/admin.html
@@ -117,15 +126,31 @@ def _account(session: Session, account_id: int) -> SupplierAccount:
     dependencies=[Depends(require_admin), Depends(same_site)],
     tags=["admin"],
 )
-def admin_approve(account_id: int, session: Session = Depends(get_session)):
-    return account_view(approve_account(session, _account(session, account_id)))
+def admin_approve(account_id: int, background: BackgroundTasks, session: Session = Depends(get_session)):
+    a = _account(session, account_id)
+    was = a.status
+    a = approve_account(session, a)
+    if was != AccountStatus.approved:
+        _email(background, "approved", a)
+    return account_view(a)
 
 
 @router.post(
     "/api/admin/accounts/{account_id}/reject", dependencies=[Depends(require_admin), Depends(same_site)], tags=["admin"]
 )
-def admin_reject(account_id: int, session: Session = Depends(get_session)):
-    return account_view(reject_account(session, _account(session, account_id)))
+def admin_reject(account_id: int, background: BackgroundTasks, session: Session = Depends(get_session)):
+    a = _account(session, account_id)
+    was = a.status
+    a = reject_account(session, a)
+    if was != AccountStatus.rejected:
+        _email(background, "rejected", a)
+    return account_view(a)
+
+
+def _email(background: BackgroundTasks, kind: str, a: SupplierAccount) -> None:
+    """Email the supplier and the team after the response is sent; a mail problem never fails the action."""
+    for to, subject, text in account_emails(kind, a):
+        background.add_task(mailer.send_quietly, subject, text, to=to)
 
 
 # ---------- /docs is admin-only once ADMIN_PASSWORD is set ----------

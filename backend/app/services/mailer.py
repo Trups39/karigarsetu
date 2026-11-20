@@ -1,7 +1,7 @@
-"""Send email through the Titan mailbox on our GoDaddy domain (contact form, new-supplier alerts).
+"""Send email through our GoDaddy Professional Email mailbox (contact form, supplier sign-up/approval/rejection).
 
 Settings in backend/.env (the password is never in the code or the repo):
-    SMTP_HOST=smtp.titan.email   SMTP_PORT=465   SMTP_USERNAME=contact@karigarsetu.co.in   SMTP_PASSWORD=...
+    SMTP_HOST=smtpout.secureserver.net   SMTP_PORT=465   SMTP_USERNAME=contact@karigarsetu.co.in   SMTP_PASSWORD=...
 """
 
 import logging
