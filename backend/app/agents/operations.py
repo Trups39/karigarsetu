@@ -40,6 +40,9 @@ Rules:
   for; never say the retailer suggested it. due_date is the agreed delivery date (after approval or a change).
 - Use the tools for every fact and every change. Never guess stock, dates or prices.
 - If the maker asks for automatic messages in another language, use set_message_language.
+- New design: use add_design. You need the design name and the price per pair; ask for whichever is missing.
+  Pairs per day is 5 and sizes are 6-10 unless the maker says otherwise. Stock starts at 0, so after adding,
+  say so and offer to set the ready pairs (use the design code that add_design returns).
 - Dates: turn "5 December" or "पुढच्या सोमवारी" into YYYY-MM-DD, using today's date. Assume the next upcoming date.
 - Approving with a different delivery date is fine. A different price is a change the retailer must accept:
   use propose_change, not approve_order.
@@ -162,6 +165,20 @@ TOOLS = [
         },
     },
     {
+        "name": "add_design",
+        "description": "Add a new design this maker sells. Stock starts at 0 for every size.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Design name, e.g. Kolhapuri Kapshi"},
+                "price_per_pair": {"type": "integer"},
+                "pairs_per_day": {"type": "integer", "description": "Production capacity; 5 if not given"},
+                "sizes": {"type": "string", "description": "Comma-separated sizes; 6,7,8,9,10 if not given"},
+            },
+            "required": ["name", "price_per_pair"],
+        },
+    },
+    {
         "name": "set_buffer_days",
         "description": "Extra days added to every delivery estimate (leather, drying, holidays).",
         "input_schema": {"type": "object", "properties": {"days": {"type": "integer"}}, "required": ["days"]},
@@ -169,6 +186,7 @@ TOOLS = [
 ]
 
 WRITE_TOOLS = {
+    "add_design",
     "approve_order",
     "reject_order",
     "propose_change",
@@ -284,6 +302,28 @@ def run_tool(session: Session, maker: Maker, name: str, args: dict, message: str
         if name == "set_capacity":
             p = inventory.set_capacity(session, maker, args["product_code"], int(args["pairs_per_day"]), actor="Maker")
             return {"done": True, "design": p.name, "pairs_per_day": p.pairs_per_day}
+        if name == "add_design":
+            sizes = args.get("sizes") or "6,7,8,9,10"
+            if isinstance(sizes, list):
+                sizes = ",".join(str(s) for s in sizes)
+            p = inventory.add_product(
+                session,
+                maker,
+                args.get("name", ""),
+                args.get("price_per_pair"),
+                args.get("pairs_per_day") or 5,
+                str(sizes),
+                actor="Maker",
+            )
+            return {
+                "done": True,
+                "design": p.name,
+                "design_code": p.code,
+                "price_per_pair": p.price_per_pair,
+                "pairs_per_day": p.pairs_per_day,
+                "sizes": p.size_list(),
+                "stock": "0 pairs ready in every size",
+            }
         if name == "set_price":
             p = inventory.set_price(session, maker, args["product_code"], int(args["price_per_pair"]), actor="Maker")
             return {"done": True, "design": p.name, "price_per_pair": p.price_per_pair}

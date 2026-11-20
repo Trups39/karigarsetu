@@ -1,13 +1,65 @@
-"""Maker-side settings: stock, capacity, price, buffer days.
+"""Maker-side settings: designs, stock, capacity, price, buffer days.
 
 Used by both the dashboard API and the Operations Agent, so the same checks and audit entries apply.
 """
 
+import re
+
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from ..core.models import Maker, Product, Stock
 from . import audit
+from . import validation as V
 from .orders import OrderError, rupees
+
+
+def add_product(
+    session: Session,
+    maker: Maker,
+    name: str,
+    price_per_pair,
+    pairs_per_day=5,
+    sizes: str = "6,7,8,9,10",
+    actor: str = "Maker",
+) -> Product:
+    """A new design for this maker, with the same field rules as the website form. Stock starts at 0."""
+    try:
+        name = V.design_name(name)
+        price = V.whole_number(price_per_pair, "Price per pair", 1, 100000)
+        per_day = V.whole_number(pairs_per_day, "Pairs per day", 1, 1000)
+        size_list = V.sizes(sizes)
+    except HTTPException as e:
+        raise OrderError(e.detail) from None
+    mine = session.exec(select(Product).where(Product.maker_id == maker.id)).all()
+    if any(p.name.lower() == name.lower() for p in mine):
+        raise OrderError(f"You already have a design called {name}.")
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "design"
+    code, n = base, 2
+    while any(p.code == code for p in mine):
+        code, n = f"{base}-{n}", n + 1
+    p = Product(
+        maker_id=maker.id,
+        code=code,
+        name=name,
+        price_per_pair=price,
+        pairs_per_day=per_day,
+        sizes=",".join(map(str, size_list)),
+    )
+    session.add(p)
+    session.flush()
+    for s in size_list:
+        session.add(Stock(product_id=p.id, size=s, ready=0))
+    audit.log(
+        session,
+        actor,
+        "product.added",
+        f"{name}: ₹{p.price_per_pair}/pair, {p.pairs_per_day} pairs/day, sizes {p.sizes}",
+        maker.id,
+    )
+    session.commit()
+    session.refresh(p)
+    return p
 
 
 def product(session: Session, maker: Maker, code: str) -> Product:

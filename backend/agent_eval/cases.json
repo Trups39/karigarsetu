@@ -730,6 +730,38 @@
           }
         }
       ]
+    },
+    {
+      "id": "M_add",
+      "name": "Maker adds a new design on WhatsApp (stock starts at 0), then sets ready pairs",
+      "steps": [
+        {
+          "from": "maker",
+          "say": "Navin design add kar: Kolhapuri Kapshi Gold, 700 rupaye jodi",
+          "expect": {
+            "product": {
+              "maker": "Kolhapur Chappal Kendra",
+              "design": "kolhapuri-kapshi-gold",
+              "price_per_pair": 700,
+              "pairs_per_day": 5
+            }
+          }
+        },
+        {
+          "from": "maker",
+          "say": "Kolhapuri Kapshi Gold size 8 la 10 jodi tayar aahet",
+          "expect": {
+            "stock": [
+              {
+                "maker": "Kolhapur Chappal Kendra",
+                "design": "kolhapuri-kapshi-gold",
+                "size": 8,
+                "ready": 10
+              }
+            ]
+          }
+        }
+      ]
     }
   ]
 }

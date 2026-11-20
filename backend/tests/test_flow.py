@@ -885,3 +885,32 @@ def test_prompt_caching_marks_tools_system_and_last_message(client, monkeypatch)
     assert calls[1]["messages"][-1]["content"][-1]["type"] == "tool_result"  # moves forward each step
     with Session(engine) as s:
         assert "cache_control" not in s.get(Conversation, "ops:" + SHINDE).history  # not saved
+
+
+def test_maker_adds_a_design_on_whatsapp_with_the_websites_rules(client):
+    """Operations Agent tool add_design: same checks as the website form, stock starts at 0, audit log entry."""
+    from sqlmodel import Session, select
+
+    from app.agents import operations
+    from app.core.models import AuditLog, Maker, Product, Stock
+
+    with Session(engine) as s:
+        maker = s.exec(select(Maker).where(Maker.phone == SHINDE)).one()
+        r = operations.run_tool(
+            s, maker, "add_design", {"name": "Kolhapuri Kapshi Gold", "price_per_pair": 700}, "navin design add kar"
+        )
+        assert r["done"] and r["design_code"] == "kolhapuri-kapshi-gold" and r["sizes"] == [6, 7, 8, 9, 10]
+        p = s.exec(select(Product).where(Product.maker_id == maker.id, Product.code == "kolhapuri-kapshi-gold")).one()
+        assert (p.price_per_pair, p.pairs_per_day) == (700, 5)
+        assert {st.ready for st in s.exec(select(Stock).where(Stock.product_id == p.id))} == {0}
+        assert s.exec(select(AuditLog).where(AuditLog.action == "product.added")).first()
+
+        # the same rules as the website: no duplicates, no bad prices or sizes
+        dup = operations.run_tool(s, maker, "add_design", {"name": "kolhapuri kapshi gold", "price_per_pair": 650}, "x")
+        assert "already have" in dup["error"]
+        bad = operations.run_tool(s, maker, "add_design", {"name": "Gents", "price_per_pair": 0}, "x")
+        assert "Price per pair" in bad["error"]
+        listed = operations.run_tool(
+            s, maker, "add_design", {"name": "Bridal", "price_per_pair": 900, "sizes": [5, 6, 7]}, "x"
+        )
+        assert listed["sizes"] == [5, 6, 7]

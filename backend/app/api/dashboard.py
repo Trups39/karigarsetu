@@ -3,7 +3,6 @@
 Each maker only ever sees and changes their own orders, designs and stock.
 """
 
-import re
 from datetime import date
 from typing import Optional
 
@@ -14,7 +13,7 @@ from sqlmodel import Session, func, select
 from ..core.db import get_session
 from ..core.models import AuditLog, Maker, Message, Order, OrderStatus, Product, Retailer, Stock
 from ..core.security import current_maker
-from ..services import audit, feasibility, inventory, orders
+from ..services import feasibility, inventory, orders
 from ..services import validation as V
 from .common import order_view
 
@@ -138,40 +137,17 @@ def products(maker: Maker = Depends(current_maker), session: Session = Depends(g
 
 @router.post("/api/products", status_code=201)
 def add_product(body: ProductIn, maker: Maker = Depends(current_maker), session: Session = Depends(get_session)):
-    """A maker adds a design they sell. Stock starts at 0 for every size."""
-    name = V.design_name(body.name)
-    price = V.whole_number(body.price_per_pair, "Price per pair", 1, 100000)
-    per_day = V.whole_number(body.pairs_per_day, "Pairs per day", 1, 1000)
-    sizes = V.sizes(body.sizes)
-    mine = session.exec(select(Product).where(Product.maker_id == maker.id)).all()
-    if any(p.name.lower() == name.lower() for p in mine):
-        raise HTTPException(409, f"You already have a design called {name}.")
-    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "design"
-    code, n = base, 2
-    while any(p.code == code for p in mine):
-        code, n = f"{base}-{n}", n + 1
-    p = Product(
-        maker_id=maker.id,
-        code=code,
-        name=name,
-        price_per_pair=price,
-        pairs_per_day=per_day,
-        sizes=",".join(map(str, sizes)),
-    )
-    session.add(p)
-    session.flush()
-    for s in sizes:
-        session.add(Stock(product_id=p.id, size=s, ready=0))
-    audit.log(
-        session,
-        "Maker",
-        "product.added",
-        f"{name}: ₹{p.price_per_pair}/pair, {p.pairs_per_day} pairs/day, sizes {p.sizes}",
-        maker.id,
-    )
-    data = p.model_dump()  # read before the commit expires it
-    session.commit()
-    return {**data, "committed": 0}
+    """A maker adds a design they sell (same rules as on WhatsApp). Stock starts at 0 for every size."""
+    # Field problems -> 400 with the message for the form; a duplicate name -> 409.
+    V.design_name(body.name)
+    V.whole_number(body.price_per_pair, "Price per pair", 1, 100000)
+    V.whole_number(body.pairs_per_day, "Pairs per day", 1, 1000)
+    V.sizes(body.sizes)
+    try:
+        p = inventory.add_product(session, maker, body.name, body.price_per_pair, body.pairs_per_day, body.sizes)
+    except orders.OrderError as e:
+        raise HTTPException(409, str(e)) from None
+    return {**p.model_dump(), "committed": 0}
 
 
 @router.patch("/api/products/{code}")
