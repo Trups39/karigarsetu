@@ -13,7 +13,7 @@ Built by **Trupti Bhosale** (from Kolhapur) for the **GoDaddy Inclusive Innovati
 | | |
 |---|---|
 | **Live site** | https://karigarsetu.co.in |
-| **Demo video** | _ADD VIDEO LINK_ (2–3 min, full WhatsApp order from shop to artisan) |
+| **Demo video** | [youtu.be/bXBJ9uguwfM](https://youtu.be/bXBJ9uguwfM) (full retailer-to-artisan flow) |
 | **WhatsApp bot** | +1 555 156 7876 (Meta test number) |
 | **Contact** | contact@karigarsetu.co.in |
 
